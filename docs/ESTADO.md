@@ -216,6 +216,7 @@ Detalle técnico, umbrales e investigación con fuentes: [ANALISIS_VIDEO.md](ANA
   - **Sin probar:** con la cámara real del usuario y con DuckDuckGo.
 - **Compartir:**
   - Repositorio git en esta carpeta (rama `main`). Se excluye `.claude/`. Se añaden `.nojekyll` para GitHub Pages y `publicar.bat` para subir los cambios.
+  - Publicada el 20-nov-2026 en <https://desirhugo.github.io/SOMBRA/> (repositorio público `desirhugo/SOMBRA`, GitHub Pages desde `main`, carpeta raíz). La primera subida no incluye las 8 combinaciones de @shadowbox.combos, que aún no estaban guardadas en git.
   - Los commits van firmados como «SOMBRA <sombra@localhost>», no con los datos del usuario.
 
 ## Limitaciones conocidas
