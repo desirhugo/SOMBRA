@@ -18,7 +18,7 @@ Si prefieres lanzarlo a mano:
 python -m http.server 8642
 ```
 
-**Opción C: enlace web (para compartirla): <https://desirhugo.github.io/SOMBRA/>.** Es la misma app publicada en GitHub Pages, con https: funciona en cualquier ordenador o móvil con Chrome o Edge, sin instalar nada. Cada persona guarda sus datos en su propio navegador: nadie ve los de nadie. Para publicar tus cambios, haz doble clic en `publicar.bat` (la web tarda 1-2 minutos en actualizarse).
+**Opción C: enlace web (para compartirla): <https://desirhugo.github.io/SOMBRA/>.** Es la misma app publicada en GitHub Pages, con https: funciona en cualquier ordenador o móvil con Chrome o Edge, sin instalar nada. Cada persona guarda sus datos en su propio navegador: nadie ve los de nadie. Para publicar tus cambios, haz doble clic en `publicar.bat` (GitHub tarda 1-2 minutos en publicarlo y hasta 10 en que le llegue a todo el mundo; si no ves el cambio, recarga la página).
 
 > **Importante:** el navegador guarda los datos por separado según cómo abras la app. Lo que guardes con `file://` (doble clic) no aparece en `http://localhost:8642` y al revés. Elige una forma y úsala siempre, o pasa los datos con **Ajustes → Exportar copia / Importar copia**.
 
