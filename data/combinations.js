@@ -387,6 +387,25 @@
     { id: 'c_1_loma_2_3_2', seq: ['jab', 'loma_shift', 'cross', 'lead_hook', 'cross'], name: 'Jab, shift de Lomachenko y dos-tres-dos', level: 'avanzado', tags: ['angulo', 'desplazamiento', 'ofensiva'],
       note: 'El jab fija al rival; el shift te coloca fuera de su línea y el dos-tres-dos llega desde el ángulo.' },
     { id: 'c_1_2_rollR_2_3_lstep', seq: ['jab', 'cross', 'roll_rear', 'cross', 'lead_hook', 'l_step'], name: 'Uno-dos, cintura completa, dos-tres y salida en L', level: 'avanzado', tags: ['defensa', 'contra', 'salida'],
-      note: 'Ataca, rueda bajo su gancho de respuesta, contraataca con el dos-tres y sal en L: nunca te quedes delante.' }
+      note: 'Ataca, rueda bajo su gancho de respuesta, contraataca con el dos-tres y sal en L: nunca te quedes delante.' },
+
+    // Adaptadas de combinaciones publicadas por la cuenta de Instagram @shadowbox.combos (nov-2026),
+    // ajustadas a esta gramática (sin el «post», como mucho 6 golpes, la media cintura al lado que encadena).
+    { id: 'c_2_5_2_3', seq: ['cross', 'lead_upper', 'cross', 'lead_hook'], name: 'Dos-cinco-dos-tres', level: 'basico', tags: ['ofensiva', 'potencia'],
+      note: 'Empieza con la mano atrasada, sube por dentro con el uppercut adelantado y cierra con el directo y el gancho.' },
+    { id: 'c_1_1_2_3', seq: ['jab', 'jab', 'cross', 'lead_hook'], name: 'Doble jab y dos-tres', level: 'basico', tags: ['fundamental', 'ofensiva', 'entrada'],
+      note: 'El doble jab cierra la distancia y el dos-tres remata cuando ya estás dentro.' },
+    { id: 'c_1_2_duck_2', seq: ['jab', 'cross', 'duck', 'cross'], name: 'Uno-dos, sentadilla y directo', level: 'basico', tags: ['defensa', 'contra'],
+      note: 'Tras el uno-dos baja con las piernas bajo su respuesta, con la guardia arriba, y sube con el directo.' },
+    { id: 'c_1_slipL_3b_3', seq: ['jab', 'slip_lead', 'lead_hook_body', 'lead_hook'], name: 'Jab, media cintura y doble gancho', level: 'basico', tags: ['defensa', 'contra', 'niveles'],
+      note: 'Tras el jab esquiva su directo al lado adelantado y aprovecha la carga para el gancho al cuerpo y el gancho arriba.' },
+    { id: 'c_slipR_6_3_4_5', seq: ['slip_rear', 'rear_upper', 'lead_hook', 'rear_hook', 'lead_upper'], name: 'Media cintura y seis-tres-cuatro-cinco', level: 'avanzado', tags: ['defensa', 'contra', 'potencia'],
+      note: 'Esquiva su jab al lado atrasado: la mano atrasada queda cargada para el uppercut y después alternas gancho, gancho y uppercut.' },
+    { id: 'c_1_2_duck_2_3_slipL_3_4', seq: ['jab', 'cross', 'duck', 'cross', 'lead_hook', 'slip_lead', 'lead_hook', 'rear_hook'], name: 'Uno-dos, sentadilla, dos-tres, media cintura y tres-cuatro', level: 'avanzado', tags: ['defensa', 'contra', 'ofensiva'],
+      note: 'Dos defensas, cada una con su contra: sentadilla y dos-tres, media cintura y tres-cuatro.' },
+    { id: 'c_1_1_6_3_6_5b', seq: ['jab', 'jab', 'rear_upper', 'lead_hook', 'rear_upper', 'lead_upper_body'], name: 'Doble jab, seis-tres-seis y uppercut al cuerpo', level: 'avanzado', tags: ['ofensiva', 'potencia', 'niveles', 'entrada'],
+      note: 'Entra con el doble jab y trabaja a corta distancia alternando uppercuts y gancho; el último uppercut baja al cuerpo.' },
+    { id: 'c_1_2_duck_2_pull_2_3', seq: ['jab', 'cross', 'duck', 'cross', 'pull_back', 'cross', 'lead_hook'], name: 'Uno-dos, sentadilla, directo, goma y dos-tres', level: 'avanzado', tags: ['defensa', 'contra'],
+      note: 'Dos defensas distintas con su contra: baja bajo su golpe, contesta con el directo, sal atrás con la goma y vuelve con el dos-tres.' }
   ];
 })(window.SB = window.SB || {});

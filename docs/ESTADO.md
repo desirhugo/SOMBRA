@@ -216,8 +216,35 @@ Detalle técnico, umbrales e investigación con fuentes: [ANALISIS_VIDEO.md](ANA
   - **Sin probar:** con la cámara real del usuario y con DuckDuckGo.
 - **Compartir:**
   - Repositorio git en esta carpeta (rama `main`). Se excluye `.claude/`. Se añaden `.nojekyll` para GitHub Pages y `publicar.bat` para subir los cambios.
-  - Publicada el 20-nov-2026 en <https://desirhugo.github.io/SOMBRA/> (repositorio público `desirhugo/SOMBRA`, GitHub Pages desde `main`, carpeta raíz). La primera subida no incluye las 8 combinaciones de @shadowbox.combos, que aún no estaban guardadas en git.
+  - Publicada el 20-nov-2026 en <https://desirhugo.github.io/SOMBRA/> (repositorio público `desirhugo/SOMBRA`, GitHub Pages desde `main`, carpeta raíz). La primera subida no incluía las 8 combinaciones de @shadowbox.combos; se subieron justo después, a petición del usuario.
   - Los commits van firmados como «SOMBRA <sombra@localhost>», no con los datos del usuario.
+
+## Combinaciones de @shadowbox.combos (20-nov-2026, a petición del usuario)
+
+- **Análisis** de los 12 reels que se ven sin iniciar sesión (animaciones 3D que promocionan una app de boxeo).
+  - Usa la numeración estándar 1–6 y enseña cada combinación primero lenta y luego a velocidad real.
+  - Los comentarios señalan errores: un vídeo en espejo, un 6 que debería ser 5 al cuerpo, una sentadilla que era cintura completa y versiones lentas distintas de las rápidas.
+- **8 combinaciones nuevas en `data/combinations.js`**, adaptadas a la gramática (sin «post», como mucho 6 golpes y la media cintura al lado que encadena):
+  - Básico:
+    - `c_2_5_2_3`;
+    - `c_1_1_2_3`;
+    - `c_1_2_duck_2`;
+    - `c_1_slipL_3b_3` («Destroyer»).
+  - Avanzado:
+    - `c_slipR_6_3_4_5`;
+    - `c_1_2_duck_2_3_slipL_3_4`;
+    - `c_1_1_6_3_6_5b`;
+    - `c_1_2_duck_2_pull_2_3`.
+  - Total: 170 combinaciones (77 de básico y 93 de avanzado).
+- **No caben** sin cambiar la gramática:
+  - 6-3-3-2 y 1-2-3-3-2-2-3-2: la gramática no deja dos ganchos adelantados seguidos a la cabeza ni dos directos seguidos.
+  - La de 10 acciones.
+  - La de 7 golpes con «post».
+  - El nivel 2 del reel por niveles, que acaba en defensa.
+- **Pruebas:**
+  - 67/67 en Node.
+  - En 40 sesiones de 30 min por nivel, las 4 básicas salen en básico (5 a 76 veces) y las 4 avanzadas en avanzado (7 a 33 veces).
+  - `c_1_slipL_3b_3` sale tanto como las demás de cuerpo y cabeza (`c_duck_3b_3`, `c_3b_3`).
 
 ## Limitaciones conocidas
 

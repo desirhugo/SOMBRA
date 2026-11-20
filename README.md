@@ -123,7 +123,7 @@ RESEARCH.md             investigación y justificación metodológica
 ## Contenido incluido
 
 - **39 técnicas:** los 6 golpes a la cabeza y al cuerpo, bloqueos, paradas, media cintura, cintura completa, goma, sentadilla, hombro, pasos, laterales, pivote, ángulo, ajuste de distancia, péndulo, salida en L, paso en Z, cambio D'Amato, shift de Lomachenko, fintas y cambio de ritmo. Cada una con indicaciones, errores comunes y animación propia.
-- **162 combinaciones investigadas:** 61 de nivel básico y 101 de avanzado, cada una con su aplicación técnica. A ellas se suma el generador automático, que respeta la gramática técnica.
+- **170 combinaciones investigadas:** 77 de nivel básico y 93 de avanzado, cada una con su aplicación técnica. Ocho de ellas, del 20-nov-2026, están adaptadas de la cuenta de Instagram @shadowbox.combos. A ellas se suma el generador automático, que respeta la gramática técnica.
 - **59 ejercicios HIIT:** 31 de fuerza y 28 de cardio (con «Sentadilla defensiva» y «Goma continua», del 13-nov-2026), en tres niveles de exigencia. La exigencia se elige en Ajustes y es independiente del nivel técnico. Todos tienen animación (añadida el 12-nov-2026): se ve durante el HIIT, en *Biblioteca → HIIT* (botón ▶) y en la vista previa (botón con el nombre del ejercicio).
 - **7 objetivos y 9 focos de ronda.** El foco «Salidas» obliga a terminar cada combinación saliendo de la línea del rival.
 - **Añadido el 1-nov-2026:** las técnicas y el foco que aportaron dos vídeos de ejercicios de pies (análisis en `RESEARCH.md` §9). Si ya usabas la app, añádelas desde *Biblioteca → Catálogo*: el motor solo usa lo que está en tu biblioteca. El D'AMATO cambia la guardia, así que solo aparece al final de una combinación; después, vuelve a tu guardia.
