@@ -1,0 +1,176 @@
+/* SOMBRA · base.css — fuentes locales, tokens y reset */
+
+/* ---------- Fuentes locales (SIL OFL, ver assets/fonts/OFL.txt) ---------- */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-condensed-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-condensed-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-latin-600-normal.woff2') format('woff2');
+}
+
+/* ---------- Tokens (tema oscuro por defecto) ---------- */
+:root {
+  color-scheme: dark;
+
+  --bg: #0B0D10;
+  --surface: #14181D;
+  --surface-2: #1B2027;
+  --surface-3: #232933;
+  --line: #262C35;
+  --line-strong: #353D49;
+  --text: #F3F5F7;
+  --text-2: #8B95A3;
+  --text-3: #7A8491;
+
+  --accent: #FF5A36;          /* boxeo */
+  --accent-ink: #1A0A05;      /* texto sobre acento */
+  --accent-soft: rgba(255, 90, 54, 0.14);
+  --strength: #A78BFA;        /* HIIT fuerza */
+  --cardio: #34D399;          /* HIIT cardio */
+  --rest: #38BDF8;            /* descanso / transición */
+  --defense: #5EEAD4;         /* defensas */
+  --footwork: #FBBF24;        /* desplazamientos */
+  --feint: #F472B6;           /* fintas / ritmo */
+  --punch: #F3F5F7;           /* golpes */
+  --danger: #F87171;
+  --ok: #34D399;
+
+  --st-aprendido: #8B95A3;
+  --st-practica: #FBBF24;
+  --st-dominado: #34D399;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', Arial, sans-serif;
+  --font-text: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+
+  --radius-s: 8px;
+  --radius: 14px;
+  --radius-l: 20px;
+  --gap: 16px;
+  --tap: 44px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --focus: 0 0 0 3px var(--bg), 0 0 0 5px var(--rest);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --dur: 180ms;
+
+  --appbar-h: 60px;
+  --tabbar-h: 64px;
+  --maxw: 1180px;
+}
+
+/* Tema claro opcional (ajuste theme: 'claro') */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F4F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #EEF0F3;
+  --surface-3: #E3E6EB;
+  --line: #DDE1E7;
+  --line-strong: #C5CBD4;
+  --text: #11151A;
+  --text-2: #4F5966;
+  --text-3: #5F6875;
+  --accent: #D9381A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(217, 56, 26, 0.10);
+  --strength: #6D4FD8;
+  --cardio: #0E8F63;
+  --rest: #0B7FB5;
+  --defense: #0D8C80;
+  --footwork: #A86A00;
+  --feint: #C42D7E;
+  --punch: #11151A;
+  --danger: #C62828;
+  --ok: #0E8F63;
+  --st-aprendido: #5D6775;
+  --st-practica: #A86A00;
+  --st-dominado: #0E8F63;
+  --shadow: 0 10px 30px rgba(16, 24, 40, 0.12);
+}
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--bg);
+}
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+img, svg, video, canvas { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+button:disabled { cursor: not-allowed; }
+a { color: inherit; }
+h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+input, select, textarea { min-width: 0; }
+
+:focus { outline: none; }
+:focus-visible { outline: none; box-shadow: var(--focus); border-radius: var(--radius-s); }
+
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.num, .tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+.display { font-family: var(--font-display); letter-spacing: 0.01em; }
+
+.icon { width: 1.25em; height: 1.25em; flex: none; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

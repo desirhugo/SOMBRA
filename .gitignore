@@ -1,0 +1,4 @@
+# Configuración local de Claude Code (no se publica)
+.claude/
+# Perfiles y capturas temporales de pruebas
+*.log

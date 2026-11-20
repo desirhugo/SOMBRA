@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="../assets/icons/app.svg" type="image/svg+xml">
+<title>SOMBRA · Pruebas del motor</title>
+<!--
+  SOMBRA · tests/index.html
+  Ejecuta en el navegador las mismas especificaciones que tests/run-node-tests.js.
+  - Funciona con doble clic (file://) y desde un servidor local.
+  - Usa un almacenamiento EN MEMORIA inyectado (SB.config.storage): nunca toca
+    los datos reales de la app guardados en localStorage.
+  - ?data=fixtures  → solo los datos de prueba (tests/fixtures)
+    ?data=real      → fixtures sustituidos por data/*.js (por defecto)
+    ?filter=texto   → solo las pruebas cuyo nombre contenga «texto»
+  - env.reload() carga otra instancia de la app en un iframe que comparte el
+    mismo almacenamiento en memoria (simula recargar la página).
+-->
+<style>
+  :root { --bg: #0B0D10; --surface: #14181D; --surface2: #1B2027; --line: #262C35; --text: #F3F5F7; --muted: #8B95A3; --ok: #34D399; --bad: #FF5A36; --info: #38BDF8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: .02em; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  nav a { color: var(--info); margin-right: 14px; text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+  #summary { margin: 16px 0; padding: 14px 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #summary.ok { border-color: var(--ok); }
+  #summary.bad { border-color: var(--bad); }
+  .suite { margin-top: 18px; }
+  .suite h2 { font-size: 15px; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .test { padding: 6px 10px; border-left: 3px solid var(--line); background: var(--surface); margin: 3px 0; border-radius: 0 6px 6px 0; }
+  .test.ok { border-left-color: var(--ok); }
+  .test.bad { border-left-color: var(--bad); background: var(--surface2); }
+  .mark { display: inline-block; width: 1.2em; font-weight: 700; }
+  .ok .mark { color: var(--ok); }
+  .bad .mark { color: var(--bad); }
+  .ms { color: var(--muted); font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .info { color: var(--info); font-size: 13px; margin: 2px 0 0 1.4em; overflow-wrap: anywhere; }
+  pre.err { color: #ffb4a3; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; margin: 6px 0 0 1.4em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>SOMBRA · Pruebas del motor</h1>
+  <p class="sub" id="dataset">Cargando…</p>
+  <nav>
+    <a href="?data=real">Con datos reales</a>
+    <a href="?data=fixtures">Con fixtures</a>
+  </nav>
+  <div id="summary">Ejecutando…</div>
+  <div id="results"></div>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  /** Almacén en memoria compartido por todas las instancias de la app de esta página. */
+  function MemoryStorage() { this._m = Object.create(null); }
+  MemoryStorage.prototype.getItem = function (k) { return Object.prototype.hasOwnProperty.call(this._m, k) ? this._m[k] : null; };
+  MemoryStorage.prototype.setItem = function (k, v) { this._m[k] = String(v); };
+  MemoryStorage.prototype.removeItem = function (k) { delete this._m[k]; };
+  MemoryStorage.prototype.key = function (i) { return Object.keys(this._m)[i] || null; };
+  MemoryStorage.prototype.clear = function () { this._m = Object.create(null); };
+  Object.defineProperty(MemoryStorage.prototype, 'length', { get: function () { return Object.keys(this._m).length; } });
+
+  const params = new URLSearchParams(location.search);
+  const dataMode = params.get('data') === 'fixtures' ? 'fixtures' : 'real';
+  const filter = params.get('filter') || '';
+  const storage = new MemoryStorage();
+
+  const DATA = ['movements.js', 'combinations.js', 'hiit.js', 'goals.js'];
+  const MODULES = [
+    'js/core/storage.js', 'js/library/notation.js', 'js/library/library.js',
+    'js/engine/grammar.js', 'js/engine/comboGenerator.js', 'js/engine/history.js', 'js/engine/selector.js',
+    'js/engine/hiitEngine.js', 'js/engine/sessionGenerator.js', 'js/engine/suggestions.js',
+    'js/calendar/calendar.js', 'js/training/timer.js', 'js/training/player.js',
+    'js/visual/figure.js', 'js/visual/poses.js', 'js/visual/exercises.js',
+    'js/vision/analyzer.js', 'js/vision/coach.js', 'js/vision/pose.js'
+  ];
+  const SPECS = ['00-helpers', '01-core', '02-library', '03-grammar', '04-session', '05-variety', '06-player', '07-calendar', '08-visual', '09-vision'];
+
+  function abs(rel) { return new URL(rel, location.href).href; }
+
+  function appScripts() {
+    let list = ['../js/core/util.js'].concat(DATA.map(function (f) { return 'fixtures/' + f; }));
+    if (dataMode === 'real') list = list.concat(DATA.map(function (f) { return '../data/' + f; }));
+    return list.concat(MODULES.map(function (f) { return '../' + f; })).map(abs);
+  }
+
+  const missing = [];
+  function loadScript(win, src, optional) {
+    return new Promise(function (resolve, reject) {
+      const s = win.document.createElement('script');
+      s.src = src;
+      s.onload = function () { resolve(true); };
+      s.onerror = function () {
+        if (optional) { missing.push(src); resolve(false); } else reject(new Error('No se pudo cargar ' + src));
+      };
+      (win.document.head || win.document.documentElement).appendChild(s);
+    });
+  }
+
+  async function loadApp(win) {
+    win.SB = { config: { storage: storage } };
+    for (const src of appScripts()) await loadScript(win, src, src.indexOf('/data/') !== -1);
+    return win.SB;
+  }
+
+  /** Nueva instancia de la app en un iframe que comparte el almacenamiento (recarga). */
+  async function reload() {
+    const frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    document.body.appendChild(frame);
+    return loadApp(frame.contentWindow);
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  async function main() {
+    const SB = await loadApp(window);
+    for (const name of SPECS) await loadScript(window, abs('specs/' + name + '.test.js'));
+    const dataName = dataMode === 'real' && !missing.length ? 'datos reales' : 'fixtures';
+    document.getElementById('dataset').textContent = 'Datos: ' + dataName +
+      (missing.length ? ' (faltan ' + missing.length + ' archivos de data/: se usan fixtures)' : '') +
+      ' · almacenamiento en memoria (no toca tus datos)';
+    const env = {
+      dataName: dataName,
+      isNode: false,
+      SB: SB,
+      fresh: function () { SB.storage.resetAll(); return SB; },
+      reload: reload,
+      rawStorage: function () { return storage; }
+    };
+    const results = document.getElementById('results');
+    let suiteBox = null, lastSuite = null;
+    const res = await window.SBT.run(env, {
+      filter: filter,
+      onResult: function (r) {
+        if (r.suite !== lastSuite) {
+          suiteBox = el('section', 'suite');
+          suiteBox.appendChild(el('h2', null, r.suite));
+          results.appendChild(suiteBox);
+          lastSuite = r.suite;
+        }
+        const row = el('div', 'test ' + (r.ok ? 'ok' : 'bad'));
+        row.appendChild(el('span', 'mark', r.ok ? '✓' : '✗'));
+        row.appendChild(document.createTextNode(r.name));
+        row.appendChild(el('span', 'ms', r.ms + ' ms'));
+        r.info.forEach(function (l) { row.appendChild(el('div', 'info', '· ' + l)); });
+        if (!r.ok) row.appendChild(el('pre', 'err', r.error));
+        suiteBox.appendChild(row);
+      }
+    });
+    const sum = document.getElementById('summary');
+    sum.textContent = res.passed + ' pasadas · ' + res.failed + ' falladas · ' + (res.passed + res.failed) + ' pruebas';
+    sum.className = res.failed ? 'bad' : 'ok';
+    document.title = (res.failed ? '✗ ' : '✓ ') + 'SOMBRA · Pruebas';
+  }
+
+  loadScript(window, abs('harness.js')).then(main).catch(function (e) {
+    const sum = document.getElementById('summary');
+    sum.textContent = 'Error al cargar las pruebas: ' + (e && e.message ? e.message : e);
+    sum.className = 'bad';
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="../assets/icons/app.svg" type="image/svg+xml">
+<title>SOMBRA · Vista previa de animaciones</title>
+<!--
+  Página de revisión [Animación]. Funciona con doble clic (file://) y desde el servidor local.
+  Carga data/movements.js y data/hiit.js (si existen) y los módulos de js/visual.
+  Incluye una cuadrícula con los ejercicios HIIT (js/visual/exercises.js).
+  Muestra TODAS las animaciones (nombre + id), selector diestro/zurdo, tema y tamaño,
+  un reproductor de secuencias (ids o códigos 1 2 3b…) y el panel de demostración (demo.js).
+-->
+<link rel="stylesheet" href="../css/base.css">
+<style>
+  :root { color-scheme: dark; }
+  [hidden] { display: none !important; }
+  body { margin: 0; padding: 16px; background: var(--bg, #0B0D10); color: var(--text, #F3F5F7);
+         font-family: var(--font-text, system-ui, sans-serif); }
+  h1 { font-family: var(--font-display, sans-serif); font-weight: 800; letter-spacing: .02em; margin: 0 0 4px; font-size: 26px; }
+  h2 { font-family: var(--font-display, sans-serif); font-weight: 700; font-size: 20px; margin: 22px 0 10px; }
+  .vp-sub { color: var(--text-2, #8B95A3); margin: 0 0 14px; font-size: 14px; }
+  .vp-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 12px;
+            background: var(--surface, #14181D); border: 1px solid var(--line, #262C35); border-radius: 12px;
+            position: sticky; top: 8px; z-index: 5; }
+  .vp-bar label { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--text-2, #8B95A3); }
+  .vp-bar select, .vp-bar input, .vp-seq input, .vp-seq button {
+    font: inherit; color: var(--text, #F3F5F7); background: var(--surface-2, #1B2027);
+    border: 1px solid var(--line-strong, #353D49); border-radius: 8px; padding: 6px 8px; }
+  .vp-seq button { cursor: pointer; background: var(--accent, #FF5A36); color: var(--accent-ink, #1A0A05); border: 0; font-weight: 600; }
+  .vp-seq form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .vp-seq input[type=text] { flex: 1 1 280px; min-width: 0; }
+  .vp-hint { font-size: 12px; color: var(--text-2, #8B95A3); margin: 6px 0 10px; }
+  .vp-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .vp-big { width: 480px; height: 400px; max-width: 100%; background: var(--surface, #14181D);
+            border: 1px solid var(--line, #262C35); border-radius: 12px; display: block; }
+  #demoHost { flex: 1 1 360px; min-width: 0; max-width: 640px; }
+  .vp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cw, 240px), 1fr)); gap: 10px; }
+  .vp-card { background: var(--surface, #14181D); border: 1px solid var(--line, #262C35); border-radius: 12px;
+             padding: 6px 6px 8px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+  .vp-card:hover { border-color: var(--line-strong, #353D49); }
+  .vp-card canvas { width: var(--cw, 240px); height: var(--ch, 200px); display: block; margin: 0 auto; }
+  .vp-card .nm { font-weight: 600; font-size: 14px; margin-top: 4px; }
+  .vp-card .id { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--text-2, #8B95A3); }
+  .vp-card .sh { float: right; font-family: var(--font-display, sans-serif); font-weight: 700; color: var(--accent, #FF5A36); }
+  .vp-warn { color: var(--footwork, #FBBF24); font-size: 14px; }
+  .vp-ok { color: var(--cardio, #34D399); font-size: 14px; }
+</style>
+</head>
+<body>
+  <h1>SOMBRA · Vista previa de animaciones</h1>
+  <p class="vp-sub">Figura original 3D simple (proyección 3/4). Guante adelantado en acento, atrasado claro. Flecha turquesa: golpe que llega (defensas).</p>
+
+  <div class="vp-bar">
+    <label>Guardia
+      <select id="stance"><option value="diestro">Diestro (ortodoxo)</option><option value="zurdo">Zurdo</option></select>
+    </label>
+    <label>Tema
+      <select id="theme"><option value="dark">Oscuro</option><option value="light">Claro</option></select>
+    </label>
+    <label>Tamaño
+      <select id="size">
+        <option value="240x200">240 × 200</option>
+        <option value="160x134">160 × 134</option>
+        <option value="360x300">360 × 300</option>
+      </select>
+    </label>
+    <label>Velocidad
+      <select id="speed"><option value="1">1×</option><option value="0.5">0,5×</option><option value="0.25">0,25×</option></select>
+    </label>
+    <label>Modo
+      <select id="mode"><option value="play">Bucle</option><option value="peak">Pose clave</option><option value="scrub">Deslizador</option></select>
+    </label>
+    <label id="scrubWrap" hidden>t <input id="scrub" type="range" min="0" max="1000" value="400"></label>
+  </div>
+
+  <section class="vp-seq">
+    <h2>Secuencia</h2>
+    <form id="seqForm">
+      <input id="seqInput" type="text" value="jab cross slip_rear cross" aria-label="Secuencia de ids">
+      <button type="submit">Reproducir</button>
+    </form>
+    <p class="vp-hint">Ids separados por espacios o comas (p. ej. <code>jab, cross, lead_hook, pivot</code>) o códigos <code>1 2 3b</code>. Clic en una tarjeta: la muestra en el panel de demostración.</p>
+    <div class="vp-row">
+      <canvas id="seqCanvas" class="vp-big"></canvas>
+      <div id="demoHost"></div>
+    </div>
+  </section>
+
+  <h2>Todas las animaciones</h2>
+  <div id="coverage"></div>
+  <div id="grid" class="vp-grid"></div>
+
+  <h2>Ejercicios HIIT</h2>
+  <div id="hiitCoverage"></div>
+  <div id="hiitGrid" class="vp-grid"></div>
+
+  <script src="../data/movements.js"></script>
+  <script src="../js/visual/figure.js"></script>
+  <script src="../js/visual/poses.js"></script>
+  <script src="../data/hiit.js"></script>
+  <script src="../js/visual/exercises.js"></script>
+  <script src="../js/visual/demo.js"></script>
+  <script>
+  (function (SB) {
+    'use strict';
+    // Lista interna (ARCHITECTURE §3) por si data/movements.js no existe.
+    var FALLBACK = [
+      ['guard', 'Guardia'], ['jab', 'Jab'], ['cross', 'Directo (cross)'], ['lead_hook', 'Gancho adelantado'],
+      ['rear_hook', 'Gancho atrasado'], ['lead_upper', 'Uppercut adelantado'], ['rear_upper', 'Uppercut atrasado'],
+      ['jab_body', 'Jab al cuerpo'], ['cross_body', 'Directo al cuerpo'], ['lead_hook_body', 'Gancho adelantado al cuerpo'],
+      ['rear_hook_body', 'Gancho atrasado al cuerpo'], ['lead_upper_body', 'Uppercut adelantado al cuerpo'],
+      ['rear_upper_body', 'Uppercut atrasado al cuerpo'], ['block_high', 'Bloqueo alto'], ['block_body', 'Bloqueo con el codo'],
+      ['parry_jab', 'Parada del jab'], ['parry_cross', 'Parada del directo'], ['slip_lead', 'Slip al lado adelantado'],
+      ['slip_rear', 'Slip al lado atrasado'], ['roll_lead', 'Roll al lado adelantado'], ['roll_rear', 'Roll al lado atrasado'],
+      ['pull_back', 'Pull back'], ['duck', 'Agachada'], ['shoulder_roll', 'Shoulder roll'], ['step_in', 'Paso adelante'],
+      ['step_back', 'Paso atrás'], ['lateral_lead', 'Lateral adelantado'], ['lateral_rear', 'Lateral atrasado'],
+      ['pivot', 'Pivote'], ['angle_step', 'Cambio de ángulo'], ['distance_reset', 'Ajuste de distancia'],
+      ['feint_jab', 'Finta de jab'], ['feint_level', 'Amago al cuerpo'], ['rhythm_break', 'Pausa de ritmo']
+    ].map(function (r) { return { id: r[0], name: r[1], anim: r[0], short: '' }; });
+
+    var movements = (SB.data && SB.data.movements && SB.data.movements.length) ? SB.data.movements : FALLBACK;
+    var poses = SB.visual.poses;
+    var $ = function (id) { return document.getElementById(id); };
+    var figures = [];
+    var stance = 'diestro';
+    var speed = 1;
+    var mode = 'play';
+
+    // cobertura
+    var noAnim = movements.filter(function (m) { return !poses.has(m.anim || m.id); }).map(function (m) { return m.id; });
+    var known = movements.map(function (m) { return m.anim || m.id; });
+    var extra = poses.list().filter(function (id) { return known.indexOf(id) < 0; });
+    var cov = $('coverage');
+    cov.innerHTML = '<p class="' + (noAnim.length ? 'vp-warn' : 'vp-ok') + '">' +
+      poses.list().length + ' animaciones · ' + movements.length + ' movimientos en ' +
+      (movements === FALLBACK ? 'lista interna' : 'data/movements.js') +
+      (noAnim.length ? ' · sin animación: ' + noAnim.join(', ') : ' · todos tienen animación') +
+      (extra.length ? ' · animaciones sin dato: ' + extra.join(', ') : '') + '</p>';
+
+    // demo + secuencia
+    var demo = SB.visual.demo.mount($('demoHost'), { stance: stance });
+    var seqFig = new SB.visual.Figure($('seqCanvas'), { stance: stance });
+    figures.push({ fig: seqFig, id: null, seq: true });
+
+    function parseSeq(text) {
+      return text.split(/[\s,;·\-]+/).filter(Boolean).map(function (t) {
+        var k = t.toLowerCase();
+        return poses.CODES[k] || k;
+      });
+    }
+    function playSeq() {
+      var ids = parseSeq($('seqInput').value);
+      seqFig.playSequence(ids, { loop: true, speed: speed });
+      demo.showCombo(ids);
+      applyMode(true);
+    }
+    $('seqForm').addEventListener('submit', function (e) { e.preventDefault(); playSeq(); });
+
+    // cuadrícula
+    var grid = $('grid');
+    movements.forEach(function (m) {
+      var anim = m.anim || m.id;
+      if (!poses.has(anim)) return;
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'vp-card';
+      card.setAttribute('data-id', m.id);
+      var cv = document.createElement('canvas');
+      card.appendChild(cv);
+      var nm = document.createElement('div'); nm.className = 'nm';
+      var sh = document.createElement('span'); sh.className = 'sh'; sh.textContent = m.short || '';
+      nm.appendChild(sh); nm.appendChild(document.createTextNode(m.name || m.id));
+      var idl = document.createElement('div'); idl.className = 'id'; idl.textContent = m.id;
+      card.appendChild(nm); card.appendChild(idl);
+      grid.appendChild(card);
+      var fig = new SB.visual.Figure(cv, { stance: stance });
+      figures.push({ fig: fig, id: anim });
+      card.addEventListener('click', function () {
+        demo.showMovement(m.id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    // ejercicios HIIT (js/visual/exercises.js)
+    var hiit = (SB.data && SB.data.hiit) || [];
+    var EX = SB.visual.exercises;
+    var noEx = hiit.filter(function (x) { return !EX || !EX.has(x.id); }).map(function (x) { return x.id; });
+    $('hiitCoverage').innerHTML = '<p class="' + (noEx.length ? 'vp-warn' : 'vp-ok') + '">' +
+      (EX ? EX.list().length : 0) + ' animaciones · ' + hiit.length + ' ejercicios en data/hiit.js' +
+      (noEx.length ? ' · sin animación: ' + noEx.join(', ') : ' · todos tienen animación') + '</p>';
+    hiit.forEach(function (x) {
+      if (!EX || !EX.has(x.id)) return;
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'vp-card';
+      card.setAttribute('data-id', x.id);
+      var cv = document.createElement('canvas');
+      card.appendChild(cv);
+      var nm = document.createElement('div'); nm.className = 'nm';
+      var sh = document.createElement('span'); sh.className = 'sh'; sh.textContent = x.category === 'cardio' ? 'CARDIO' : 'FUERZA';
+      nm.appendChild(sh); nm.appendChild(document.createTextNode(x.name));
+      var idl = document.createElement('div'); idl.className = 'id'; idl.textContent = x.id;
+      card.appendChild(nm); card.appendChild(idl);
+      $('hiitGrid').appendChild(card);
+      var fig = new SB.visual.Figure(cv, { stance: stance });
+      figures.push({ fig: fig, id: x.id, ex: true });
+      card.addEventListener('click', function () {
+        demo.showExercise(x);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    function applyMode(onlySeq) {
+      figures.forEach(function (f) {
+        if (onlySeq && !f.seq) return;
+        if (f.ex) {
+          if (mode === 'play') { f.fig.playExercise(f.id, { speed: speed }); return; }
+          f.fig.loadExercise(f.id);
+        } else if (f.seq) {
+          if (mode === 'play') return; // la secuencia ya se reproduce
+        } else if (mode === 'play') {
+          f.fig.playMovement(f.id, { speed: speed });
+          return;
+        } else {
+          f.fig.load(f.id);
+        }
+        if (mode === 'peak') f.fig.seek('peak');
+        else if (mode === 'scrub') {
+          var clip = f.fig._clip;
+          if (clip) f.fig.seek(clip.duration * (+$('scrub').value / 1000));
+        }
+      });
+    }
+
+    $('stance').addEventListener('change', function () {
+      stance = this.value;
+      figures.forEach(function (f) { f.fig.setStance(stance); });
+      demo.setStance(stance);
+    });
+    $('theme').addEventListener('change', function () {
+      if (this.value === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      else document.documentElement.removeAttribute('data-theme');
+      document.documentElement.style.colorScheme = this.value === 'light' ? 'light' : 'dark';
+      figures.forEach(function (f) { f.fig._renderAt(f.fig._lastT); });
+    });
+    $('size').addEventListener('change', function () {
+      var wh = this.value.split('x');
+      document.documentElement.style.setProperty('--cw', wh[0] + 'px');
+      document.documentElement.style.setProperty('--ch', wh[1] + 'px');
+    });
+    $('speed').addEventListener('change', function () {
+      speed = +this.value;
+      if (mode === 'play') applyMode(false);
+      seqFig.playSequence(parseSeq($('seqInput').value), { loop: true, speed: speed });
+    });
+    $('mode').addEventListener('change', function () {
+      mode = this.value;
+      $('scrubWrap').hidden = mode !== 'scrub';
+      if (mode === 'play') { applyMode(false); playSeq(); }
+      else applyMode(false);
+    });
+    $('scrub').addEventListener('input', function () { applyMode(false); });
+
+    applyMode(false);
+    playSeq();
+    demo.showCombo(parseSeq($('seqInput').value));
+
+    window.__vp = { figures: figures, demo: demo, seqFig: seqFig, parseSeq: parseSeq };
+  })(window.SB);
+  </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="SOMBRA · Shadow Boxing Trainer: sesiones de shadow boxing con combinaciones coherentes y HIIT, sin conexión.">
+  <meta name="theme-color" content="#0B0D10">
+  <meta name="color-scheme" content="dark light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SOMBRA">
+  <title>SOMBRA · Shadow Boxing Trainer</title>
+  <link rel="icon" href="assets/icons/app.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/app.svg">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/training.css">
+  <!-- El manifest y el service worker se añaden desde js/app.js solo si se sirve por http(s). -->
+</head>
+<body>
+  <a class="skip-link" id="skip" href="#view">Saltar al contenido</a>
+  <header class="appbar" id="appbar"></header>
+  <main id="view" class="view" tabindex="-1" aria-live="off"></main>
+  <nav class="tabbar" id="tabbar"></nav>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <noscript>
+    <div class="noscript">SOMBRA necesita JavaScript activado para funcionar.</div>
+  </noscript>
+
+  <!-- Orden de carga fijado en docs/ARCHITECTURE.md §2 -->
+  <script src="js/core/util.js"></script>
+  <script src="data/movements.js"></script>
+  <script src="data/combinations.js"></script>
+  <script src="data/hiit.js"></script>
+  <script src="data/goals.js"></script>
+  <script src="js/core/storage.js"></script>
+  <script src="js/core/mediaStore.js"></script>
+  <script src="js/library/notation.js"></script>
+  <script src="js/library/library.js"></script>
+  <script src="js/engine/grammar.js"></script>
+  <script src="js/engine/comboGenerator.js"></script>
+  <script src="js/engine/history.js"></script>
+  <script src="js/engine/selector.js"></script>
+  <script src="js/engine/hiitEngine.js"></script>
+  <script src="js/engine/sessionGenerator.js"></script>
+  <script src="js/engine/suggestions.js"></script>
+  <script src="js/calendar/calendar.js"></script>
+  <script src="js/training/timer.js"></script>
+  <script src="js/training/player.js"></script>
+  <script src="js/audio/sounds.js"></script>
+  <script src="js/audio/voice.js"></script>
+  <script src="js/visual/figure.js"></script>
+  <script src="js/visual/poses.js"></script>
+  <script src="js/visual/exercises.js"></script>
+  <script src="js/visual/demo.js"></script>
+  <script src="js/vision/analyzer.js"></script>
+  <script src="js/vision/coach.js"></script>
+  <script src="js/vision/pose.js"></script>
+  <script src="js/ui/components.js"></script>
+  <script src="js/ui/router.js"></script>
+  <script src="js/ui/screens/onboarding.js"></script>
+  <script src="js/ui/screens/home.js"></script>
+  <script src="js/ui/screens/preview.js"></script>
+  <script src="js/ui/screens/train.js"></script>
+  <script src="js/ui/screens/library.js"></script>
+  <script src="js/ui/screens/movement.js"></script>
+  <script src="js/ui/screens/custom.js"></script>
+  <script src="js/ui/screens/calendar.js"></script>
+  <script src="js/ui/screens/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
