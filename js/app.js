@@ -14,7 +14,9 @@
     equipRope: true, equipTape: true, equipAnkles: true, equipHangBall: true, equipElbow: true,
     cameraAnalysis: true, voiceCues: true, cameraPreview: true,
     // Cámara elegida en Ajustes ('' = automática) y la última que funcionó (se prueba primero).
-    cameraId: '', cameraLastId: ''
+    cameraId: '', cameraLastId: '',
+    // Voz elegida ('' = automática: masculina si la hay) y clips de los fallos para el resumen (21-nov-2026).
+    voiceName: '', cameraClips: true
   };
   var SESSION_KEY = 'sombra.currentSession'; // sessionStorage (no es dato persistente del usuario)
 

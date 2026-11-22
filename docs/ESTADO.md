@@ -4,7 +4,7 @@ Este archivo permite **reanudar** el trabajo desde una sesión nueva sin el hist
 
 ESTADO GLOBAL: COMPLETADO
 
-Última actualización: 20-nov-2026 (+01:00) — la cámara prueba cada cámara (las virtuales al final), «Probar cámara» y errores con solución; repositorio git y publicar.bat para compartirla por GitHub Pages (ver sección propia)
+Última actualización: 21-nov-2026 (+01:00) — comentarios espaciados y felicitaciones, voz masculina, un objeto por ronda, ronda de mano adelantada sin repeticiones y clips de los fallos a cámara lenta con vídeo de YouTube (ver sección propia)
 
 ## Encargo original (resumen)
 
@@ -245,6 +245,64 @@ Detalle técnico, umbrales e investigación con fuentes: [ANALISIS_VIDEO.md](ANA
   - 67/67 en Node.
   - En 40 sesiones de 30 min por nivel, las 4 básicas salen en básico (5 a 76 veces) y las 4 avanzadas en avanzado (7 a 33 veces).
   - `c_1_slipL_3b_3` sale tanto como las demás de cuerpo y cabeza (`c_duck_3b_3`, `c_3b_3`).
+
+## Comentarios, voz, material y clips de los fallos (21-nov-2026, a petición del usuario)
+
+Lo que pidió:
+- menos comentarios (uno por serie o cada tres combinaciones);
+- una voz más masculina o más suave;
+- que le diga cuándo lo hace bien;
+- no juntar pelota, toalla y papel en la misma ronda;
+- menos repetición de la mano adelantada;
+- clips de sus fallos a cámara lenta con un vídeo de YouTube para corregirlos.
+
+Respuestas a las dudas que se le preguntaron:
+- las mancuernas cuentan como un objeto más (siempre solas);
+- una ronda de mano adelantada por sesión, alternando papel y toalla;
+- los clips se borran al salir del resumen;
+- el mejor vídeo, en cualquier idioma.
+
+- **Diagnóstico (simulación de 40 sesiones por nivel, todo el material activado).**
+  - 3 de cada 4 rondas llevaban 2 o 3 objetos a la vez.
+  - La repetición de la mano adelantada venía de las rondas con papel o toalla: había dos por sesión, todas sus combinaciones eran de la mano adelantada y la misma combinación se repetía en el 30 % (básico) o el 44 % (avanzado) de la ronda.
+  - En las rondas normales, la mano adelantada da el 54-56 % de los golpes, lo normal por el jab. No se ha cambiado.
+- **Material (`materialPlan`, `js/engine/sessionGenerator.js`).**
+  - Un objeto por ronda como mucho.
+  - Cada accesorio, una vez por sesión desde la 2.ª ronda y repartido por la sesión; si no caben todos, `rot` cambia cuáles salen.
+  - Papel o toalla, nunca juntos: la sesión usa el contrario del de la última sesión registrada (`lock` en el historial, `snapshot().lastLock`). Esa ronda no va junto a la de la cuerda.
+  - Mancuernas en las rondas libres, nunca en la última.
+- **Ronda de mano adelantada.**
+  - Todos los intervalos son de variación y ninguna combinación se repite en la ronda.
+  - Las generadas solo usan técnicas válidas con el brazo atrasado fijo (`allowMove`).
+  - Se da prioridad a las combinaciones con defensa o desplazamiento (`boost`) y la ronda lleva foco de defensa o contraataque, aunque coincida con el de la ronda de al lado. Ahora el 97-100 % de sus combinaciones llevan una defensa o un paso.
+  - Resultado de la misma simulación: una ronda de mano adelantada por sesión y 0 % de combinaciones repetidas en ella.
+- **Comentarios (`js/vision/coach.js`).**
+  - Uno por serie como mucho; la pantalla de entrenamiento avisa de cada serie (`startSerie`) y de cada combinación (`onCombo`).
+  - Entre dos comentarios, al menos 3 combinaciones o 25 s.
+  - Una corrección por familia y ronda («sube la mano de atrás», «la de delante» y «la otra mano» cuentan como una).
+  - Si los errores que siguen ya se dijeron, se calla.
+  - Felicitaciones con el mismo cupo: al corregir lo que se dijo, cuando el tema va bien o con golpes limpios.
+- **Voz (`js/audio/voice.js`).**
+  - Por defecto, masculina de España si la hay (Pablo en Windows), con velocidad 0,95 (antes 1,1) y tono 0,9.
+  - Ajustes: selector con las voces locales en español y botón «Probar voz» (`voiceName`).
+- **Clips (`js/vision/clips.js`, nuevo).**
+  - Mientras analiza, guarda en memoria los últimos 3,6 s en pequeño (320 px).
+  - Cuando el entrenador ve un error (`onFault`, una vez por error y ronda, aunque no lo diga), copia esa ventana a JPEG: un clip por error y 10 como mucho (≈ 110-125 KB cada uno en la prueba).
+  - Al final, cada punto a mejorar muestra su clip a 0,25×, 0,5× o 1×, en espejo, con el esqueleto, la zona del fallo en rojo y frases por tramos.
+  - Se borran al salir de la pantalla (`dispose`). Ajuste `cameraClips`.
+- **Vídeos (`data/videos.js`, nuevo).**
+  - Un vídeo de YouTube por fallo (10 claves) y, cuando lo hay, otro en español.
+  - Todos existen: comprobados el 21-nov-2026 con oEmbed de YouTube, que devolvió su título y su canal. Se eligieron por título, canal y descripción; **no se han visto enteros**.
+- **Pruebas.**
+  - 72/72 en Node, con fixtures y con los datos reales. Hay 5 nuevas: papel y toalla alternos, felicitaciones, voz, clips y vídeos del informe. Las del material y los avisos se han adaptado a las reglas nuevas.
+  - En Chrome con cámara simulada (1366×768 y 390×760):
+    - el grabador y el reproductor con una imagen sintética;
+    - una sesión real hasta el final: llegan las series y las combinaciones, salen 2 clips en el informe con sus vídeos, la cámara se apaga y al salir no queda ningún reproductor;
+    - el selector de voz en Ajustes elige «Microsoft Pablo».
+- **Sin probar.**
+  - Con una persona real delante de la cámara: que los errores se detecten bien y que el clip recoja el momento justo.
+  - Cómo suena la voz de Pablo.
+  - El contenido completo de los vídeos de YouTube.
 
 ## Limitaciones conocidas
 

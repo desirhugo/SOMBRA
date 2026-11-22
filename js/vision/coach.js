@@ -8,10 +8,15 @@
  *    recogida o técnica), sin repetir el de la ronda anterior si hay alternativa. Con
  *    mancuernas nunca «velocidad» (se trabaja técnica y control); con papel no «cadera»
  *    (no hay golpes de la mano atrasada); con pelota no «barbilla» (ya la sujeta la pelota).
- *  - Indicaciones en directo: frases cortas cuando un error se repite (no por un fotograma
- *    suelto). Separación mínima entre avisos y sin repetir el mismo enseguida. Las de
- *    seguridad de la guardia y de colocación salen siempre; el resto, solo si son del tema
- *    de la ronda. Refuerzo positivo cuando el tema de la ronda va bien.
+ *  - Indicaciones en directo (21-nov-2026, a petición del usuario: «todo el rato levanta la
+ *    mano… me desconcentra»): como mucho UN comentario por serie (intervalo) y al menos 3
+ *    combinaciones (o 25 s) desde el anterior. La misma corrección, una vez por ronda. Solo
+ *    avisa de un error que se repite (no de un fotograma suelto); las de guardia y colocación
+ *    pueden salir siempre y el resto solo si son del tema de la ronda.
+ *  - Felicitaciones con el mismo cupo: si corriges lo que se te dijo («¡Eso es! Ya no cargas el
+ *    golpe»), si el tema de la ronda va bien o si los últimos golpes salen limpios.
+ *  - onFault(id, {t0, t1, hand, side}): cada error detectado (dicho o no), una vez por ronda,
+ *    con la ventana de tiempo en la que se ve; sirve para guardar el clip del fallo.
  *  - Resumen de cada ronda (para el descanso) e informe final: qué haces bien y qué
  *    mejorar, con explicación y consejo. No se guarda nada.
  */
@@ -28,11 +33,29 @@
   };
   const ADAPTIVE = ['guardia', 'barbilla', 'cadera', 'recogida', 'tecnica'];
 
-  const GAP = 6;          // s entre avisos
-  const GAP_CRITICAL = 4; // s si el aviso es de guardia o colocación
-  const SAME = 18;        // s antes de repetir el mismo aviso
-  const POSITIVE_GAP = 25;
-  const QUIET_AFTER_FAULT = 8;
+  const MIN_COMBOS = 3;      // combinaciones entre dos comentarios…
+  const MIN_GAP = 25;        // …o, si no cambian (series de repetición), segundos
+  const SERIE_SETTLE = 5;    // s de cada serie antes del primer comentario
+  const PRAISE_SETTLE = 8;   // s de cada serie antes de felicitar
+
+  /** Errores que se ven en un golpe concreto (marca del evento del analizador). */
+  const PUNCH_FLAG = { other_hand: 'otherLow', windup: 'windup', low_return: 'lowReturn', slow_return: 'slowReturn',
+    arm_only: 'armOnly', short: 'shortStraight', lean: 'lean' };
+
+  /** Felicitación cuando desaparece un error que se te dijo. */
+  const FIXED = {
+    rear_low: '¡Eso es! La mano de atrás ya no baja', lead_low: '¡Eso es! La mano de delante, arriba',
+    other_hand: '¡Bien! La otra mano se queda en la cara', chin_up: '¡Bien! Barbilla abajo', floor: '¡Bien! Mirada al frente',
+    windup: '¡Eso es! Ya no cargas el golpe', low_return: '¡Bien! Ya recoges por el mismo camino', slow_return: '¡Bien! Recoges más rápido',
+    arm_only: '¡Eso es! Ahora giras la cadera', short: '¡Bien! Rectos estirados', lean: '¡Bien! El peso, centrado',
+    flare: '¡Bien! Codos cerrados', narrow: '¡Bien! Buena base', wide: '¡Bien! Buena base', faster: '¡Eso es, más rápido!',
+    volume: '¡Bien! Sigue soltando'
+  };
+  const CLEAN_TEXT = '¡Bien hecho! Golpes limpios';
+  /** Correcciones de la misma familia: se dice una de ellas por ronda («sube la mano» una vez). */
+  const FAMILY = { rear_low: 'manos', lead_low: 'manos', other_hand: 'manos', chin_up: 'cabeza', floor: 'cabeza',
+    low_return: 'recogida', slow_return: 'recogida', narrow: 'pies', wide: 'pies' };
+  function familyOf(id) { return FAMILY[id] || id; }
 
   function median(a) { return SB.vision.analyzerUtil.median(a); }
   function pct(x) { return Math.round((x || 0) * 100) + ' %'; }
@@ -172,24 +195,29 @@
 
   // --------------------------------------------------------------- Coach
   /**
-   * @param {{analyzer, say?: (text) => void, show?: (text, kind) => void}} opts
+   * @param {{analyzer, say?: (text) => void, show?: (text, kind) => void,
+   *          onFault?: (id: string, info: {t0, t1, hand, side}) => void}} opts
    */
   function Coach(opts) {
     const o = opts || {};
     this.an = o.analyzer;
     this.say = typeof o.say === 'function' ? o.say : function () {};
     this.show = typeof o.show === 'function' ? o.show : function () {};
+    this.onFault = typeof o.onFault === 'function' ? o.onFault : null;
     this.theme = null;
     this.material = {};
     this.prevTheme = null;
     this.velocityDone = false;
-    this.lastCue = -1e9;
-    this.lastFault = -1e9;
-    this.lastPositive = -1e9;
-    this.lastById = {};
     this.lastEval = -1e9;
     this.roundStart = null;
-    this.metrics = [];      // métricas de las rondas cerradas
+    this.serieStart = null;     // inicio de la serie en curso (null: la ronda entera es una serie)
+    this.serieSpoken = false;   // ¿ya hubo comentario en esta serie?
+    this.lastSpoken = -1e9;     // último comentario (s)
+    this.combosSince = 1e9;     // combinaciones desde el último comentario
+    this.saidInRound = {};      // correcciones dichas en la ronda
+    this.toCheck = null;        // última corrección dicha: se felicita si desaparece
+    this.faultSeen = {};        // errores enviados a onFault en la ronda
+    this.metrics = [];          // métricas de las rondas cerradas
   }
 
   /** Velocidad de referencia: mediana de las rondas sin mancuernas ya hechas (o de esta ronda). */
@@ -236,7 +264,11 @@
     this.prevTheme = this.theme;
     this.theme = theme;
     this.roundStart = now != null ? now : null;
-    this.lastById = {};
+    this.serieStart = null;
+    this.serieSpoken = false;
+    this.saidInRound = {};
+    this.faultSeen = {};
+    this.toCheck = null;
     const T = THEMES[theme];
     // Una sola frase de material (la más importante), para no alargar el anuncio.
     const mt = this.material;
@@ -248,15 +280,66 @@
     else if (mt.ankles) extra = ' Goma en los tobillos: los pies, a la anchura de los hombros.';
     else if (mt.tape) extra = ' Pies junto a la línea del suelo.';
     const text = 'Ronda ' + (i.round || 1) + ': ' + T.name.toLowerCase() + '. ' + T.intro.charAt(0).toUpperCase() + T.intro.slice(1) + '.' + extra;
-    this.lastCue = now != null ? now : this.lastCue;
+    // El anuncio del tema no gasta el cupo de la serie, pero cuenta para la separación.
+    if (now != null) this.lastSpoken = now;
+    this.combosSince = 0;
     this.say(text);
     this.show(T.name.toUpperCase() + ' · ' + T.intro, 'theme');
     return { theme: theme, name: T.name, text: text };
   };
 
+  /** Empieza una serie (intervalo) de la ronda: vuelve a haber cupo para un comentario. */
+  Coach.prototype.startSerie = function (now) {
+    this.serieStart = now;
+    this.serieSpoken = false;
+  };
+
+  /** Se ha mostrado una combinación nueva. */
+  Coach.prototype.onCombo = function () {
+    if (this.combosSince < 1e9) this.combosSince++;
+  };
+
+  /** ¿Hay cupo para un comentario ahora? */
+  Coach.prototype.canSpeak = function (now, settle) {
+    if (this.serieSpoken) return false;
+    const from = this.serieStart != null ? this.serieStart : this.roundStart;
+    if (from != null && now - from < settle) return false;
+    return this.combosSince >= MIN_COMBOS || now - this.lastSpoken >= MIN_GAP;
+  };
+
+  Coach.prototype._speak = function (now, id, text, kind) {
+    this.serieSpoken = true;
+    this.lastSpoken = now;
+    this.combosSince = 0;
+    this.say(text);
+    this.show(text, kind);
+    return { id: id, text: text, kind: kind };
+  };
+
+  /** Ventana de tiempo en la que se ve el error (el golpe concreto o los últimos segundos). */
+  function faultWindow(c, q) {
+    const flag = PUNCH_FLAG[q.id];
+    if (flag) {
+      const p = lastPunches(c.an, 12, 20, c.now).filter(function (e) { return e[flag]; });
+      const ev = p[p.length - 1];
+      if (ev) {
+        const end = ev.tEnd != null ? ev.tEnd : ev.t0 + 0.4;
+        return { t0: ev.t0 - 0.8, t1: end + 0.5, at: ev.t0, peak: ev.t0 + (ev.outT || 0.15), end: end, hand: ev.hand, side: ev.side || null };
+      }
+    }
+    return { t0: c.now - 2, t1: c.now + 0.5, at: null, peak: null, end: null, hand: null, side: null };
+  }
+
+  /** ¿Hay datos para decir que algo va bien? (te ve y, si es de golpes, has golpeado) */
+  function enoughData(c, id) {
+    if (!(c.sum.visible > 0.8)) return false;
+    if (PUNCH_FLAG[id] || id === 'faster' || id === 'volume') return lastPunches(c.an, 6, 15, c.now).length >= 3;
+    return true;
+  }
+
   /**
    * Revisa la situación (llamar en cada fotograma de boxeo; evalúa cada 0,5 s).
-   * @returns {object|null} el aviso dado
+   * @returns {object|null} el comentario dicho
    */
   Coach.prototype.update = function (now) {
     if (!this.an || now - this.lastEval < 0.5) return null;
@@ -266,34 +349,55 @@
     if (elapsed < 4) return null; // deja colocarse
     const c = { sum: this.an.recentSummary(4, now), an: this.an, now: now, coach: this, material: this.material, roundElapsed: elapsed };
     const theme = this.theme;
+    const mat = this.material || {};
+    const hits = [];
     for (let i = 0; i < CUES.length; i++) {
       const q = CUES[i];
-      const mat = this.material || {};
-      const inTheme = q.critical || (q.themes && q.themes.indexOf(theme) !== -1) ||
-        (q.withMaterial && q.withMaterial.some(function (k) { return !!mat[k]; }));
-      if (!inTheme) continue;
-      const gap = q.critical ? GAP_CRITICAL : GAP;
-      if (now - this.lastCue < gap) continue;
-      if (now - (this.lastById[q.id] || -1e9) < SAME) continue;
       let hit = false;
       try { hit = q.test(c); } catch (e) { hit = false; }
       if (!hit) continue;
-      const text = typeof q.text === 'function' ? q.text(c) : q.text;
-      this.lastCue = now; this.lastFault = now; this.lastById[q.id] = now;
-      this.say(text);
-      this.show(text, 'fault');
-      return { id: q.id, text: text, kind: 'fault' };
-    }
-    const pos = POSITIVES[theme];
-    if (pos && elapsed > 15 && now - this.lastPositive > POSITIVE_GAP && now - this.lastFault > QUIET_AFTER_FAULT && now - this.lastCue > GAP) {
-      let ok = false;
-      try { ok = pos.test(c); } catch (e) { ok = false; }
-      if (ok) {
-        this.lastCue = now; this.lastPositive = now;
-        this.say(pos.text);
-        this.show(pos.text, 'good');
-        return { id: 'positive', text: pos.text, kind: 'good' };
+      // Para el clip del fallo: cada error una vez por ronda, aunque no se diga.
+      if (this.onFault && q.id !== 'visible' && q.id !== 'volume' && q.id !== 'faster' && !this.faultSeen[q.id]) {
+        this.faultSeen[q.id] = true;
+        const w = faultWindow(c, q);
+        const self = this;
+        try { self.onFault(q.id, w); } catch (e) { /* noop */ }
       }
+      const inTheme = q.critical || (q.themes && q.themes.indexOf(theme) !== -1) ||
+        (q.withMaterial && q.withMaterial.some(function (k) { return !!mat[k]; }));
+      if (inTheme) hits.push(q);
+    }
+    if (!this.canSpeak(now, SERIE_SETTLE)) return null;
+
+    // Corrección: la primera (por prioridad) que no se haya dicho ya en esta ronda.
+    const self = this;
+    const fresh = hits.filter(function (q) { return !self.saidInRound[familyOf(q.id)]; });
+    if (fresh.length) {
+      const q = fresh[0];
+      const text = typeof q.text === 'function' ? q.text(c) : q.text;
+      this.saidInRound[familyOf(q.id)] = true;
+      if (FIXED[q.id]) this.toCheck = { id: q.id, t: now, q: q };
+      return this._speak(now, q.id, text, 'fault');
+    }
+    if (hits.length) return null; // los errores que siguen ya se dijeron: mejor callar que repetir
+
+    // Felicitación (mismo cupo, con algo más de serie para tener datos).
+    if (!this.canSpeak(now, PRAISE_SETTLE)) return null;
+    // 1) Has corregido lo último que se te dijo
+    const chk = this.toCheck;
+    if (chk && now - chk.t >= 6 && enoughData(c, chk.id)) {
+      this.toCheck = null;
+      return this._speak(now, 'fixed_' + chk.id, FIXED[chk.id], 'good');
+    }
+    // 2) El tema de la ronda va bien
+    const pos = POSITIVES[theme];
+    let ok = false;
+    if (pos && elapsed > 12) { try { ok = pos.test(c); } catch (e) { ok = false; } }
+    if (ok) return this._speak(now, 'positive', pos.text, 'good');
+    // 3) Los últimos golpes, limpios
+    const p = lastPunches(this.an, 5, 12, now);
+    if (c.sum.visible > 0.8 && p.length >= 4 && p.every(function (e) { return !e.windup && !e.lowReturn && !e.otherLow && !e.armOnly && !e.shortStraight && !e.lean && !e.slowReturn; })) {
+      return this._speak(now, 'clean', CLEAN_TEXT, 'good');
     }
     return null;
   };
@@ -437,8 +541,34 @@
 
     good.sort(function (a, b) { return b.sev - a.sev; });
     improve.sort(function (a, b) { return b.sev - a.sev; });
+    improve.forEach(function (x) {
+      const l = REPORT_LINKS[x.title] || {};
+      x.clips = (l.clips || []).slice();   // errores cuyo clip ilustra este punto (en orden de preferencia)
+      x.video = l.video || null;           // clave de SB.data.videos
+    });
     return { good: good, improve: improve };
   }
+
+  /** Clip y vídeo de YouTube de cada punto a mejorar del informe. */
+  const REPORT_LINKS = {
+    'Bajas la guardia': { clips: ['rear_low', 'lead_low', 'other_hand'], video: 'guardia' },
+    'La otra mano baja al golpear': { clips: ['other_hand', 'rear_low', 'lead_low'], video: 'guardia' },
+    'La guardia cae al final de las rondas': { clips: ['rear_low', 'lead_low'], video: 'guardia' },
+    'Levantas la barbilla': { clips: ['chin_up'], video: 'barbilla' },
+    'Miras al suelo': { clips: ['floor'], video: 'barbilla' },
+    'Recoges por abajo': { clips: ['low_return'], video: 'recogida' },
+    'Recoges despacio': { clips: ['slow_return'], video: 'recogida' },
+    'Cargas el golpe antes de soltarlo': { clips: ['windup'], video: 'cargar' },
+    'Rectos cortos': { clips: ['short'], video: 'rectos' },
+    'Te inclinas al golpear': { clips: ['lean'], video: 'equilibrio' },
+    'Golpes que no se parecen a los pedidos': { clips: [], video: 'tecnica' },
+    'Golpeas solo con el brazo': { clips: ['arm_only'], video: 'cadera' },
+    'Codos abiertos': { clips: ['flare'], video: 'codos' },
+    'Rodillas rectas': { clips: [], video: 'base' },
+    'Estás de frente («cuadrado»)': { clips: [], video: 'base' },
+    'Base estrecha': { clips: ['narrow'], video: 'base' },
+    'Base muy abierta': { clips: ['wide'], video: 'base' }
+  };
 
   /**
    * Informe final de la sesión.

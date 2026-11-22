@@ -256,7 +256,8 @@
   }
 
   function weightedPick(ctx, list, req, skip) {
-    return ctx.rng.weighted(list, function (e) { return skip(e) ? 0 : weightOf(ctx, e, req); });
+    const boost = typeof req.boost === 'function' ? req.boost : null;
+    return ctx.rng.weighted(list, function (e) { return skip(e) ? 0 : weightOf(ctx, e, req) * (boost ? boost(e.seq) : 1); });
   }
 
   /** Intenta generar una combinación nueva para el hueco. */
@@ -264,6 +265,7 @@
     if (!SB.comboGen) return null;
     const avoid = new Set(ctx.usage.keys());
     (req.exclude || EMPTY).forEach(function (s) { avoid.add(s); });
+    const allowMove = typeof req.allowMove === 'function' ? req.allowMove : null;
     const g = SB.comboGen.generate({
       level: ctx.level,
       focusId: req.focus || null,
@@ -271,7 +273,7 @@
       targetComplexity: req.target,
       maxComplexity: SB.grammar.LIMITS[ctx.level].maxComplexity,
       avoid: avoid,
-      weightOf: function (id) { return movementWeight(ctx, id, req.mode); }
+      weightOf: function (id) { return allowMove && !allowMove(id) ? 0 : movementWeight(ctx, id, req.mode); }
     });
     if (!g) return null;
     if (!forced) {
@@ -302,8 +304,11 @@
    * Elige una combinación para un hueco.
    * @param {object} ctx  createContext()
    * @param {{mode: 'repeticion'|'variacion', focus?: object, target?: number, exclude?: Set<string>,
-   *          allow?: (seq: string[]) => boolean}} req  allow: filtro obligatorio (p. ej. ronda con papel:
-   *          solo golpes de la mano adelantada); si nada lo cumple devuelve null.
+   *          allow?: (seq: string[]) => boolean, allowMove?: (id) => boolean,
+   *          boost?: (seq: string[]) => number, genProb?: number}} req  allow: filtro obligatorio (p. ej.
+   *          ronda con papel: solo golpes de la mano adelantada); si nada lo cumple devuelve null.
+   *          allowMove: técnicas que puede usar una combinación generada. boost: factor de peso de cada
+   *          combinación. genProb: probabilidad de generar una nueva en vez de elegirla del pool.
    * @returns {object|null} entrada {seq, signature, complexity, source, refId, name, note, tags, movIds}
    */
   function pick(ctx, req) {
@@ -313,14 +318,27 @@
     const strict = function (e) { return bad(e) || exclude.has(e.signature) || (r.mode === 'repeticion' && ctx.repUsed.has(e.signature)); };
     let e = null;
 
-    if (ctx.rng.next() < ctx.pGen) {
+    // Con boost, una generada se acepta con probabilidad boost / boostMax (las que el boost no
+    // favorece salen menos, igual que en el sorteo del pool).
+    const accept = function (x) {
+      if (typeof r.boost !== 'function' || !(r.boostMax > 0)) return true;
+      return ctx.rng.next() < Math.min(1, r.boost(x.seq) / r.boostMax);
+    };
+    if (ctx.rng.next() < (r.genProb != null ? r.genProb : ctx.pGen)) {
       e = tryGenerate(ctx, r, false);
-      if (e && !strict(e)) return e;
+      if (e && !strict(e) && accept(e)) return e;
     }
     e = weightedPick(ctx, focusList(ctx, r.focus), r, strict);
     if (e) return e;
-    e = tryGenerate(ctx, r, true);
-    if (e && !strict(e)) return e;
+    // Con boost se prueban hasta 3 generadas y se queda la primera que acepta (o la primera válida).
+    let firstOk = null;
+    for (let k = 0; k < (typeof r.boost === 'function' ? 3 : 1); k++) {
+      e = tryGenerate(ctx, r, true);
+      if (!e || strict(e)) continue;
+      if (accept(e)) return e;
+      if (!firstOk) firstOk = e;
+    }
+    if (firstOk) return firstOk;
     if (r.focus) {
       e = weightedPick(ctx, ctx.pool, r, strict);
       if (e) { ctx.flags.relaxedFocus++; return e; }

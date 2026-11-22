@@ -827,3 +827,7 @@ body.immersive .toasts { bottom: 24px; }
 .camtest-pick { display: grid; gap: 4px; max-width: 420px; }
 .camtest-pick[hidden] { display: none; }
 .camtest-select { width: 100%; }
+/* Voz de las indicaciones (Ajustes) */
+.voice-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.voice-select { flex: 1 1 220px; min-width: 0; max-width: 420px; }
+.voice-note { margin: 4px 0 0; }

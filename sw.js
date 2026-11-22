@@ -3,7 +3,7 @@
    la app sigue funcionando sin conexión). Sube CACHE_VERSION al cambiar la lista de archivos. */
 'use strict';
 
-var CACHE_VERSION = 'sombra-v9';
+var CACHE_VERSION = 'sombra-v10';
 var APP_FILES = [
   './',
   'index.html',
@@ -24,6 +24,7 @@ var APP_FILES = [
   'data/combinations.js',
   'data/hiit.js',
   'data/goals.js',
+  'data/videos.js',
   'js/core/storage.js',
   'js/core/mediaStore.js',
   'js/library/notation.js',
@@ -43,6 +44,7 @@ var APP_FILES = [
   'js/vision/analyzer.js',
   'js/vision/coach.js',
   'js/vision/pose.js',
+  'js/vision/clips.js',
   'js/visual/figure.js',
   'js/visual/poses.js',
   'js/visual/exercises.js',

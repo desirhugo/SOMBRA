@@ -53,23 +53,51 @@
       shareField.hidden = !s.equipDumbbells;
       var materialCard = h('div', { class: 'card settings-card' },
         h('h2', { class: 'h3' }, 'Material'),
-        h('p', { class: 'muted small' }, 'Cada objeto sale en algunas rondas, no en todas. La vista previa te dice qué preparar y el entrenamiento, qué usar en cada ronda.'),
-        ui.toggle({ label: 'Mancuernas de 1 kg', desc: 'Sombra con peso en parte de las rondas de boxeo. Antes del HIIT te avisa de que las dejes.', checked: s.equipDumbbells, onChange: function (v) { set({ equipDumbbells: v }); shareField.hidden = !v; } }),
+        h('p', { class: 'muted small' }, 'Cada ronda lleva un solo objeto como mucho, y cada uno sale una vez por sesión (si hay más objetos que rondas, los que faltan salen en la siguiente). La vista previa te dice qué preparar y el entrenamiento, qué usar en cada ronda.'),
+        ui.toggle({ label: 'Mancuernas de 1 kg', desc: 'Sombra con peso en las rondas que no llevan otro material (nunca la última). Antes del HIIT te avisa de que las dejes.', checked: s.equipDumbbells, onChange: function (v) { set({ equipDumbbells: v }); shareField.hidden = !v; } }),
         shareField,
         ui.toggle({ label: 'Comba como cuerda de esquivas', desc: 'La comba no se puede saltar en casa, pero atada a la altura del pecho entre dos puntos sirve para esquivar: pasas por debajo con la cintura completa o la sentadilla y haces la media cintura a su lado. En esas rondas todas las combinaciones llevan una esquiva, y la media cintura, la cintura completa y la sentadilla continuas del HIIT se hacen con ella.', checked: s.equipRope, onChange: function (v) { set({ equipRope: v }); } }),
-        ui.toggle({ label: 'Pelota de tenis colgada', desc: 'Colgada de un hilo a la altura de la cara: la golpeas, la esquivas y giras a su alrededor (puntería, distancia y ritmo). Esas rondas van sin mancuernas.', checked: s.equipHangBall, onChange: function (v) { set({ equipHangBall: v }); } }),
-        ui.toggle({ label: 'Papel entre el guante y la mejilla', desc: 'En la mejilla de la mano atrasada: esa mano no se separa de la cara, así que esas rondas solo llevan golpes de la mano adelantada, defensas y desplazamientos.', checked: s.equipPaper, onChange: function (v) { set({ equipPaper: v }); } }),
-        ui.toggle({ label: 'Toalla o guante bajo el codo', desc: 'Bajo el codo de la mano atrasada, apretado contra el costado: protege las costillas y evita abrir el codo. Va en las mismas rondas que el papel.', checked: s.equipElbow, onChange: function (v) { set({ equipElbow: v }); } }),
+        ui.toggle({ label: 'Pelota de tenis colgada', desc: 'Colgada de un hilo a la altura de la cara: la golpeas, la esquivas y giras a su alrededor (puntería, distancia y ritmo).', checked: s.equipHangBall, onChange: function (v) { set({ equipHangBall: v }); } }),
+        ui.toggle({ label: 'Papel entre el guante y la mejilla', desc: 'En la mejilla de la mano atrasada: esa mano no se separa de la cara, así que esa ronda solo lleva golpes de la mano adelantada, con defensas y desplazamientos y sin repetir combinación. Se alterna con la toalla: una sesión el papel y la siguiente la toalla.', checked: s.equipPaper, onChange: function (v) { set({ equipPaper: v }); } }),
+        ui.toggle({ label: 'Toalla o guante bajo el codo', desc: 'Bajo el codo de la mano atrasada, apretado contra el costado: protege las costillas y evita abrir el codo. Como con el papel, solo golpes de la mano adelantada; se alterna con él entre sesiones.', checked: s.equipElbow, onChange: function (v) { set({ equipElbow: v }); } }),
         ui.toggle({ label: 'Pelota pequeña bajo la barbilla', desc: 'Si la pelota se cae, has levantado la barbilla. Al alternar rondas con y sin ella, el análisis por cámara compara cómo la llevas.', checked: s.equipBall, onChange: function (v) { set({ equipBall: v }); } }),
         ui.toggle({ label: 'Cinta en el suelo', desc: 'Una línea y una cruz con cinta de pintor: al avanzar y retroceder, la punta del pie delantero y el talón trasero junto a la línea; en la cruz, pivotas 90° sin perder la guardia.', checked: s.equipTape, onChange: function (v) { set({ equipTape: v }); } }),
         ui.toggle({ label: 'Goma en los tobillos', desc: 'Una goma circular ligera que queda justa con los pies a la anchura de los hombros: si se tensa, has abierto demasiado. Antes del HIIT te avisa de que te la quites.', checked: s.equipAnkles, onChange: function (v) { set({ equipAnkles: v }); } }));
+
+      // --- Voz: cualquier voz local en español, con prueba (por defecto, masculina si la hay)
+      var voiceField = null;
+      if (SB.voice && SB.voice.voices) {
+        SB.voice.setVoice(s.voiceName || '');
+        var voiceSel = h('select', { class: 'select voice-select', 'aria-label': 'Voz de las indicaciones' });
+        var voiceNote = h('p', { class: 'muted small voice-note' });
+        var fillVoices = function () {
+          var list = SB.voice.voices();
+          ui.clear(voiceSel);
+          voiceSel.appendChild(h('option', { value: '' }, 'Automática (masculina si la hay)'));
+          list.forEach(function (v) { voiceSel.appendChild(h('option', { value: v.name }, v.name + ' · ' + v.lang + (v.male ? ' · masculina' : ''))); });
+          voiceSel.value = list.some(function (v) { return v.name === s.voiceName; }) ? s.voiceName : '';
+          voiceSel.disabled = !list.length;
+          voiceNote.textContent = list.length ? 'Se usará: ' + SB.voice.current() + '.' : 'No hay voces en español instaladas: las indicaciones se verán en pantalla. En Windows se añaden en Configuración → Hora e idioma → Voz.';
+        };
+        voiceSel.addEventListener('change', function () { set({ voiceName: voiceSel.value }); SB.voice.setVoice(voiceSel.value); fillVoices(); });
+        if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) window.speechSynthesis.addEventListener('voiceschanged', fillVoices);
+        fillVoices();
+        var tryBtn = ui.button('Probar voz', { variant: 'secondary', size: 'sm', icon: 'play', onClick: function () {
+          SB.voice.setVolume(s.sound === false ? 0.8 : (Number(s.volume) || 0.7));
+          if (!SB.voice.say('¡Bien hecho! Guardia arriba y barbilla abajo')) ui.toast('No hay ninguna voz en español en este dispositivo.');
+        } });
+        voiceField = ui.field('Voz de las indicaciones', h('div', { class: 'voice-row' }, voiceSel, tryBtn), null);
+        voiceField.appendChild(voiceNote);
+      }
 
       // --- Análisis por cámara
       var camTester = ui.cameraTester && ui.has('vision.pose') ? ui.cameraTester() : null;
       var camCard = h('div', { class: 'card settings-card' },
         h('h2', { class: 'h3' }, 'Análisis por cámara'),
-        ui.toggle({ label: 'Analizar mis rondas de boxeo', desc: 'Usa la cámara durante las rondas de boxeo (el HIIT no) para revisar guardia, barbilla, golpes, cadera y velocidad, darte indicaciones en directo y un informe al terminar. Todo se procesa en este dispositivo: no se graba vídeo, no se guarda nada y la cámara se apaga al salir.', checked: s.cameraAnalysis, onChange: function (v) { set({ cameraAnalysis: v }); } }),
-        ui.toggle({ label: 'Indicaciones por voz', desc: 'Frases cortas como «sube la mano» o «gira la cadera». Solo con las voces instaladas en el dispositivo; si no hay ninguna en español, se muestran en pantalla.', checked: s.voiceCues, onChange: function (v) { set({ voiceCues: v }); } }),
+        ui.toggle({ label: 'Analizar mis rondas de boxeo', desc: 'Usa la cámara durante las rondas de boxeo (el HIIT no) para revisar guardia, barbilla, golpes, cadera y velocidad, darte indicaciones en directo y un informe al terminar. Todo se procesa en este dispositivo y la cámara se apaga al salir. Solo se guardan los clips de los fallos si los activas abajo, y se borran al salir del resumen.', checked: s.cameraAnalysis, onChange: function (v) { set({ cameraAnalysis: v }); } }),
+        ui.toggle({ label: 'Indicaciones por voz', desc: 'Como mucho un comentario por serie y la misma corrección una vez por ronda; también te dice cuándo lo haces bien. Solo con las voces instaladas en el dispositivo; si no hay ninguna en español, se muestran en pantalla.', checked: s.voiceCues, onChange: function (v) { set({ voiceCues: v }); } }),
+        voiceField,
+        ui.toggle({ label: 'Clips de tus fallos a cámara lenta', desc: 'Guarda unos segundos de cada fallo para enseñártelos al terminar, a cámara lenta y con lo que pasa marcado, junto a un vídeo de YouTube para corregirlo. Solo en la memoria de esa pantalla: no se suben a ningún sitio y se borran al salir del resumen.', checked: s.cameraClips !== false, onChange: function (v) { set({ cameraClips: v }); } }),
         ui.toggle({ label: 'Ver la cámara durante la sesión', desc: 'Una ventana pequeña con tu imagen y los puntos detectados, para colocarte bien.', checked: s.cameraPreview, onChange: function (v) { set({ cameraPreview: v }); } }),
         h('p', { class: 'muted small' }, 'Colócate a unos 2-3 m del dispositivo, con la cámara a la altura del pecho y de frente, de forma que se te vea de la cabeza a los pies y con buena luz. Las medidas son aproximadas: una sola cámara no ve la profundidad con precisión.'),
         camTester);
@@ -158,7 +186,10 @@
         ui.screenHeader({ title: 'Ajustes', eyebrow: 'Preferencias' }),
         h('div', { class: 'settings-grid' }, trainingCard, materialCard, camCard, displayCard, dataCard),
         h('p', { class: 'muted small about' }, 'SOMBRA · Shadow Boxing Trainer. Funciona sin conexión. Tipografías Barlow y Barlow Condensed (SIL Open Font License).')));
-      return function cleanup() { if (camTester) ui.safe(camTester.dispose); };
+      return function cleanup() {
+        if (camTester) ui.safe(camTester.dispose);
+        if (fillVoices && window.speechSynthesis) ui.safe(function () { window.speechSynthesis.removeEventListener('voiceschanged', fillVoices); });
+      };
     }
   };
 })(window.SB = window.SB || {});

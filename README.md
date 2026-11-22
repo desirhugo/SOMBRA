@@ -38,20 +38,24 @@ Pulsa **Probar cámara** en la vista previa («Antes de empezar») o en **Ajuste
 2. **Inicio:** acepta un entrenamiento sugerido o elige duración (20/30/45), nivel (BÁSICO/AVANZADO) y objetivo, y pulsa **Generar sesión**.
 3. **Vista previa:** revisa los bloques. Con **Regenerar** obtienes otra sesión distinta; con **Empezar** entrenas.
 4. **Entrenamiento:** la combinación aparece en números grandes, que ocupan todo el espacio que deja la pantalla. Al lado (o encima, en un móvil en vertical) una figura animada la ejecuta y rotula el golpe en curso. En los descansos la figura enseña la primera combinación de la ronda siguiente; en la transición, el ejercicio HIIT que viene, y durante el HIIT, cómo se hace. Cada bloque es una ronda de 3 intervalos, una transición, un HIIT (fuerza o cardio) y un descanso; todos los ejercicios de abdomen van juntos al final de la sesión. Antes de cada ronda hay una cuenta atrás 3-2-1 y un pitido suave.
-6. **Material (activado por defecto; se cambia en Ajustes → Material):**
-   - Mancuernas de 1 kg en el 30, 50 o 70 % de las rondas; la última va siempre sin peso.
-   - Rondas especiales:
-     - brazo atrasado fijo, con papel en la mejilla y toalla bajo el codo: solo golpes de la mano adelantada;
-     - comba atada como cuerda de esquivas: todas las combinaciones llevan media cintura, cintura completa o sentadilla;
-     - pelota de tenis colgada.
-   - Material ligero, uno por ronda: pelota bajo la barbilla, cinta en el suelo y goma en los tobillos.
+6. **Material (activado por defecto; se cambia en Ajustes → Material):** cada ronda lleva **un solo objeto** como mucho, y cada uno sale una vez por sesión desde la 2.ª ronda (si hay más objetos que rondas, los que no caben salen en la sesión siguiente).
+   - Brazo atrasado fijo: papel en la mejilla **o** toalla bajo el codo, nunca los dos. Una sola ronda así por sesión, alternando: una sesión el papel y la siguiente la toalla. Solo lleva golpes de la mano adelantada, así que tiene foco de defensa o contraataque (esquivas y pasos entre los golpes), todo variación y ninguna combinación repetida.
+   - Comba atada como cuerda de esquivas: todas las combinaciones llevan media cintura, cintura completa o sentadilla.
+   - Pelota de tenis colgada, pelota bajo la barbilla, cinta en el suelo y goma en los tobillos.
+   - Mancuernas de 1 kg: también solas, en las rondas que quedan libres, hasta el 30, 50 o 70 % de las rondas; la última va siempre sin peso.
 
    La vista previa («Antes de empezar») te dice cómo preparar cada objeto, y el entrenamiento qué usar en cada ronda y qué dejar antes del HIIT.
 7. **Análisis por cámara (activado por defecto; interruptor en la vista previa y en Ajustes):** durante las rondas de boxeo (no en el HIIT), la app revisa:
    - la guardia, la barbilla y los golpes;
    - la recogida, la cadera y la velocidad aproximada.
 
-   Cada ronda tiene un tema (técnica, velocidad, guardia…), te da indicaciones cortas por voz o en pantalla, te resume cada ronda en el descanso y al final te explica qué haces bien y qué mejorar. **No se graba ni se guarda nada:** todo se procesa en el dispositivo y la cámara se apaga al terminar. Colócate a 2-3 m, de frente y entero en la imagen. Detalles y fuentes en `docs/ANALISIS_VIDEO.md`.
+   Cada ronda tiene un tema (técnica, velocidad, guardia…) y te resume cada ronda en el descanso.
+   - **Comentarios:** como mucho uno por serie (intervalo) y con al menos 3 combinaciones de separación. La misma corrección («sube la mano») se dice una vez por ronda. También te dice cuándo lo haces bien: si corriges lo que se te dijo («¡Eso es! Ya no cargas el golpe»), si el tema de la ronda va bien o si los últimos golpes salen limpios.
+   - **Voz:** por defecto, una voz masculina en español si el dispositivo la tiene (en Windows, Pablo), algo más lenta y grave. En **Ajustes → Análisis por cámara** puedes elegir otra y probarla.
+   - **Al final**, qué haces bien y qué mejorar. En cada punto a mejorar verás **un clip de tu fallo a cámara lenta** (0,25×, 0,5× o 1×, en espejo como la cámara), con el esqueleto, la zona del fallo en rojo y una frase de lo que pasa en cada momento («Aquí cargas: la mano va hacia atrás antes de salir»), y **un vídeo de YouTube** para aprender a hacerlo bien.
+   - **Privacidad:** todo se procesa en el dispositivo y la cámara se apaga al terminar. Los clips (unos 2-3 s de cada fallo) solo existen en la memoria de la pantalla final: no se suben a ningún sitio y se borran al salir. Se pueden desactivar en Ajustes.
+
+   Colócate a 2-3 m, de frente y entero en la imagen. Detalles y fuentes en `docs/ANALISIS_VIDEO.md`.
 5. **Calendario:** el día se marca solo al terminar la sesión o al salir con al menos 5 minutos de trabajo. Ahí ves tu racha actual y tu mejor racha.
 
 ### Atajos de teclado durante el entrenamiento
@@ -134,7 +138,7 @@ RESEARCH.md             investigación y justificación metodológica
 node tests/run-node-tests.js
 ```
 
-Son 67 pruebas que se ejecutan con datos de prueba y con los datos reales. Comprueban, entre otras cosas:
+Son 72 pruebas que se ejecutan con datos de prueba y con los datos reales. Comprueban, entre otras cosas:
 
 - la duración de las sesiones;
 - la alternancia entre fuerza y cardio;
@@ -144,9 +148,11 @@ Son 67 pruebas que se ejecutan con datos de prueba y con los datos reales. Compr
 - la persistencia de los datos;
 - el reproductor y el calendario;
 - que cada técnica y cada ejercicio HIIT tenga animación válida;
-- el abdomen al final y el material por ronda;
+- el abdomen al final y el material por ronda (un objeto por ronda, papel y toalla alternos, ronda de mano adelantada sin repetir combinaciones);
 - el análisis por cámara, con un cuerpo sintético que lanza golpes limpios o con errores;
-- el orden en que se prueban las cámaras (las virtuales al final) y los mensajes de error de la cámara.
+- el orden en que se prueban las cámaras (las virtuales al final) y los mensajes de error de la cámara;
+- el ritmo de los comentarios (uno por serie, sin repetir) y las felicitaciones;
+- la elección de la voz, las frases de los clips y que cada punto a mejorar tenga su vídeo.
 
 `tests/index.html` ejecuta las mismas pruebas en el navegador y `tests/visual-preview.html` muestra todas las animaciones, también las de los ejercicios HIIT.
 

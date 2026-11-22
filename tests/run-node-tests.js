@@ -43,7 +43,12 @@ const MODULES = [
   'js/vision/analyzer.js',
   'js/vision/coach.js',
   // cámara: solo las funciones puras (orden de cámaras y mensajes de error)
-  'js/vision/pose.js'
+  'js/vision/pose.js',
+  // clips (sin canvas: solo las frases de cada momento) y voz (elección de la voz)
+  'js/vision/clips.js',
+  'js/audio/voice.js',
+  // vídeos de YouTube recomendados en el informe
+  'data/videos.js'
 ];
 
 /** localStorage simulado (misma interfaz que el del navegador). */

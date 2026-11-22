@@ -9,13 +9,17 @@ Con **Ajustes → Análisis por cámara** activado, la app usa la cámara **solo
 - **En directo:**
   - Cada ronda tiene un **tema**, que se anuncia por voz y en pantalla.
   - Si un error **se repite**, sale una **indicación corta**: «Sube la mano de atrás», «Barbilla abajo», «Gira la cadera en el golpe de atrás»…
-  - Cuando el tema de la ronda va bien, sale un **refuerzo**, por ejemplo «¡Bien! Guardia arriba».
+  - También te dice **cuándo lo haces bien**: «¡Eso es! Ya no cargas el golpe» si corriges lo que se te dijo, «¡Bien! Guardia arriba» si el tema de la ronda va bien o «¡Bien hecho! Golpes limpios».
+  - Desde el 21-nov-2026, **como mucho un comentario por serie** (ver «Avisos»).
 - **En cada descanso:** un resumen de la ronda anterior (golpes, velocidad aproximada, guardia, barbilla, lo mejor y lo que hay que mejorar).
-- **Al terminar:** un informe con lo que haces bien y lo que debes mejorar, cada punto explicado y con un consejo, más los datos de la sesión y una tabla por ronda.
+- **Al terminar:** un informe con lo que haces bien y lo que debes mejorar, cada punto explicado y con un consejo, más los datos de la sesión y una tabla por ronda. Desde el 21-nov-2026, cada punto a mejorar lleva **el clip de tu fallo a cámara lenta** (si se pudo grabar) y **un vídeo de YouTube** para corregirlo (`data/videos.js`).
 
 **Privacidad:**
-- No se graba vídeo: no se usa `MediaRecorder` y ningún fotograma se guarda.
-- Cada imagen se analiza en el dispositivo y se descarta; solo quedan contadores de la sesión en curso.
+- No se usa `MediaRecorder`. Cada imagen se analiza en el dispositivo y se descarta; solo quedan contadores de la sesión en curso.
+- **Clips de los fallos** (21-nov-2026, a petición del usuario; ajuste «Clips de tus fallos a cámara lenta», activado por defecto):
+  - mientras analiza, la app guarda en memoria los últimos 3,6 s en pequeño (320 px);
+  - cuando ve un error, copia esa ventana (unos 2-3 s) a JPEG: un clip por error y 10 como mucho;
+  - los clips solo existen en la memoria de la pantalla final: no se suben, no se guardan en el dispositivo y se borran al salir de ella.
 - Al terminar o salir se apaga la cámara, y el informe desaparece al salir de la pantalla final.
 - No hay peticiones de red: el detector y el modelo están en `vendor/mediapipe`.
 
@@ -105,7 +109,13 @@ Estos umbrales son **orientativos**: salen de la técnica descrita por entrenado
 
 **Avisos:**
 - **Cuándo saltan:** cuando el error se repite (≥ 2 de los últimos golpes, o más del 40-50 % del tiempo en los últimos 4 s).
-- **Separación:** al menos 6 s entre avisos, 4 s si son de guardia o colocación, y 18 s antes de repetir el mismo.
+- **Separación (21-nov-2026, a petición del usuario):**
+  - como mucho un comentario por serie (intervalo);
+  - entre dos comentarios, al menos 3 combinaciones o 25 s;
+  - la misma corrección, una vez por ronda; «sube la mano de atrás», «sube la de delante» y «la otra mano en la cara» cuentan como una;
+  - si los errores que quedan ya se dijeron, no dice nada.
+  Antes eran 6 s entre avisos (4 s los de guardia) y 18 s antes de repetir el mismo.
+- **Felicitaciones:** usan el mismo cupo. Por orden: corregiste lo último que se te dijo, el tema de la ronda va bien o los últimos 4-5 golpes salen limpios.
 - **Qué avisos salen:** los de guardia y colocación siempre; el resto, solo si son del tema de la ronda.
 
 ## 3. Material y bloque de abdomen
@@ -115,17 +125,21 @@ Estos umbrales son **orientativos**: salen de la técnica descrita por entrenado
 - Entre rondas sigue la alternancia de fuerza y cardio.
 - Tras el último HIIT hay un descanso y después de 1 a 4 ejercicios de abdomen (según la duración), cada uno con su transición de 5 s. Ese tiempo cuenta dentro de la duración pedida.
 
-**Material (Ajustes → Material; desde el 15-nov-2026 todo viene activado):**
+**Material (Ajustes → Material; desde el 15-nov-2026 todo viene activado).** Desde el 21-nov-2026, a petición del usuario, **un objeto por ronda como mucho**. Cada accesorio sale una vez por sesión, desde la 2.ª ronda y repartido; si hay más accesorios que rondas, los que no caben salen en otra sesión.
 - **Mancuernas de 1 kg:**
-  - Van en el 30, 50 o 70 % de las rondas (por defecto, 70 %).
-  - Sin peso: la última ronda y las de pelota colgada.
+  - También van solas: en las rondas sin accesorio, hasta el 30, 50 o 70 % de las rondas (por defecto, 70 %).
+  - Nunca en la última ronda.
   - Antes del HIIT sale «Deja las mancuernas».
-- **Rondas especiales** (como mucho una por ronda, a partir de la 2.ª; con un tipo, rondas 2, 5, 8…; con dos, cada uno 1 de cada 3; con los tres, 1 de cada 4):
-  - **Brazo atrasado fijo:** papel entre el guante y la mejilla y toalla (o guante) bajo el codo, los dos de la mano atrasada. Solo hay golpes de la mano adelantada, defensas que no usan la mano atrasada y desplazamientos, sin cambios de guardia.
-  - **Cuerda de esquivas:** la comba no se puede saltar en casa, pero atada tensa a la altura del pecho entre dos puntos sirve para esquivar. Todas las combinaciones de esa ronda llevan media cintura, cintura completa o sentadilla, y el foco es Defensa o Contraataque.
-  - **Pelota de tenis colgada:** de un hilo, a la altura de la cara; se golpea, se esquiva y se gira a su alrededor. Va sin mancuernas.
-- **Material ligero** (uno por ronda, en ciclo):
-  - **Pelota pequeña bajo la barbilla.** Si es el único activado, va en las rondas impares, para comparar con y sin pelota.
+- **Brazo atrasado fijo:**
+  - Papel entre el guante y la mejilla **o** toalla (o guante) bajo el codo, nunca los dos.
+  - Una sola ronda por sesión, alternando: una sesión el papel y la siguiente la toalla.
+  - Solo hay golpes de la mano adelantada, defensas que no usan la mano atrasada y desplazamientos, sin cambios de guardia.
+  - Para que no sea todo jab: todo variación, ninguna combinación repetida, foco de Defensa o Contraataque y prioridad a las combinaciones con esquiva o paso.
+  - No va junto a la ronda de la cuerda.
+- **Cuerda de esquivas:** la comba no se puede saltar en casa, pero atada tensa a la altura del pecho entre dos puntos sirve para esquivar. Todas las combinaciones de esa ronda llevan media cintura, cintura completa o sentadilla, y el foco es Defensa o Contraataque.
+- **Pelota de tenis colgada:** de un hilo, a la altura de la cara; se golpea, se esquiva y se gira a su alrededor.
+- **Otros accesorios:**
+  - **Pelota pequeña bajo la barbilla.**
   - **Cinta en el suelo:** una línea y una cruz. En la línea, la punta del pie delantero y el talón trasero junto a ella; en la cruz, pivotar 90°.
   - **Goma en los tobillos:** una goma circular ligera, justa con los pies a la anchura de los hombros. Antes del HIIT sale «Quítate la goma de los tobillos».
 - **Comba imaginaria:** se mantiene en el HIIT.

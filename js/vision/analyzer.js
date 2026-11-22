@@ -409,7 +409,7 @@
     const outT = Math.max(0.01, P.tPeak - P.t0);
     const backT = Math.max(0, P.tEnd - P.tPeak);
     const ev = {
-      hand: P.hand, type: type, body: body, t0: P.t0, tEnd: P.tEnd,
+      hand: P.hand, side: P.side, type: type, body: body, t0: P.t0, tEnd: P.tEnd,
       speed: Math.round(P.peakSpeed * 10) / 10, outT: outT, backT: backT,
       elbow: Math.round(P.elbow),
       otherLow: P.otherMin < C.otherHandLow,

@@ -108,12 +108,28 @@
     const an = o.analyzer || new SB.vision.Analyzer({ stance: 'diestro' });
     an.startRound({ round: o.round || 1, material: o.material || {}, durationSec: frames.length / 30 });
     if (o.combo) an.setCombo(o.combo);
-    const cues = [];
+    const cues = [], kinds = [], series = [];
     const coach = o.coach;
     if (coach) coach.startRound({ round: o.round || 1, material: o.material || {} }, frames[0].t);
-    frames.forEach(function (f) { an.push(f); if (coach) { const c = coach.update(f.t); if (c) cues.push(c.id); } });
+    // Series (intervalos) de serieSec segundos y una combinación nueva cada comboSec segundos.
+    let serie = -1, combo = -1;
+    frames.forEach(function (f) {
+      an.push(f);
+      if (!coach) return;
+      const el = f.t - frames[0].t;
+      if (o.serieSec && Math.floor(el / o.serieSec) !== serie) { serie = Math.floor(el / o.serieSec); coach.startSerie(f.t); }
+      if (o.comboSec && Math.floor(el / o.comboSec) !== combo) { combo = Math.floor(el / o.comboSec); coach.onCombo(); }
+      const c = coach.update(f.t);
+      if (c) { cues.push(c.id); kinds.push(c.kind); series.push(Math.max(0, serie)); }
+    });
     const stats = an.endRound();
-    return { an: an, stats: stats, cues: cues, summary: coach ? coach.endRound(stats) : null };
+    return { an: an, stats: stats, cues: cues, kinds: kinds, series: series, summary: coach ? coach.endRound(stats) : null };
+  }
+
+  /** Fotogramas seguidos de dos tramos (el segundo empieza donde acaba el primero). */
+  function joinFrames(a, b) {
+    const off = a.length ? a[a.length - 1].t + 1 / 30 : 0;
+    return a.concat(b.map(function (f) { return Object.assign({}, f, { t: f.t + off }); }));
   }
 
   function hasVision(env) { return env.SB.vision && env.SB.vision.Analyzer && env.SB.vision.Coach; }
@@ -162,21 +178,48 @@
       assert.ok(hooks >= P.length - 1, 'clasificados como gancho: ' + P.map(function (p) { return p.type + '/' + p.elbow + '°'; }).join(','));
     });
 
-    SBT.it('guardia baja y barbilla arriba: avisos en directo y resumen', function (env, assert) {
+    SBT.it('guardia baja y barbilla arriba: un comentario por serie, sin repetir, clips y resumen', function (env, assert) {
       if (!hasVision(env)) return;
       const SB = env.fresh();
       const an = new SB.vision.Analyzer({ stance: 'diestro' });
-      const said = [];
-      const coach = new SB.vision.Coach({ analyzer: an, say: function (t) { said.push(t); } });
-      const r = runRound(SB, roundFrames(30, [{ hand: 'l' }, { hand: 'r', rot: 35 }], { lowHands: true, noseY: -0.72 }), { analyzer: an, coach: coach });
-      assert.ok(r.cues.indexOf('rear_low') !== -1 || r.cues.indexOf('lead_low') !== -1, 'avisa de la mano baja: ' + r.cues.join(','));
-      assert.ok(r.cues.indexOf('chin_up') !== -1, 'avisa de la barbilla (ronda de técnica): ' + r.cues.join(','));
+      const said = [], faults = {};
+      const coach = new SB.vision.Coach({ analyzer: an, say: function (t) { said.push(t); },
+        onFault: function (id, w) { faults[id] = w; } });
+      const r = runRound(SB, roundFrames(60, [{ hand: 'l' }, { hand: 'r', rot: 35 }], { lowHands: true, noseY: -0.72 }),
+        { analyzer: an, coach: coach, serieSec: 20, comboSec: 4 });
+      assert.ok(['rear_low', 'lead_low', 'other_hand', 'chin_up'].indexOf(r.cues[0]) !== -1, 'primero, una corrección de guardia o barbilla: ' + r.cues.join(','));
       assert.ok(said[0].indexOf('Ronda 1') === 0, 'anuncia el tema: ' + said[0]);
-      assert.ok(r.cues.length <= 8, 'sin saturar: ' + r.cues.length + ' avisos en 30 s');
+      [0, 1, 2].forEach(function (k) { assert.ok(r.series.filter(function (s) { return s === k; }).length <= 1, 'serie ' + (k + 1) + ': un comentario como mucho (' + r.series.join(',') + ')'); });
+      assert.ok(r.cues.filter(function (id) { return ['rear_low', 'lead_low', 'other_hand'].indexOf(id) !== -1; }).length <= 1, '«sube la mano» una vez por ronda: ' + r.cues.join(','));
+      assert.ok(r.kinds.every(function (k) { return k === 'fault'; }), 'sin felicitar mientras siguen los errores: ' + r.kinds.join(','));
+      assert.ok((faults.rear_low || faults.lead_low) && faults.chin_up, 'clips: guardia y barbilla (' + Object.keys(faults).join(',') + ')');
+      const w = faults.chin_up;
+      assert.ok(w.t1 > w.t0 && w.t1 - w.t0 <= 3, 'ventana del clip de 3 s como mucho: ' + (w.t1 - w.t0).toFixed(1) + ' s');
+      SBT.info('comentarios: ' + r.cues.join(', ') + ' · clips: ' + Object.keys(faults).join(', '));
       const fb = SB.vision.coachUtil.feedbackOf([SB.vision.coachUtil.metricsOf(r.stats)]);
       assert.ok(fb.improve.some(function (x) { return x.area === 'guardia'; }), 'informe: mejorar guardia');
       assert.ok(fb.improve.some(function (x) { return x.area === 'barbilla'; }), 'informe: mejorar barbilla');
       assert.ok(r.summary && r.summary.fix, 'resumen de ronda con un punto a mejorar');
+    });
+
+    SBT.it('felicita: al corregir lo que se dijo y cuando los golpes salen limpios', function (env, assert) {
+      if (!hasVision(env)) return;
+      const SB = env.fresh();
+      // Serie 1: jab cargado; series 2 y 3: jab limpio.
+      const an = new SB.vision.Analyzer({ stance: 'diestro' });
+      const coach = new SB.vision.Coach({ analyzer: an });
+      const frames = joinFrames(roundFrames(20, [{ hand: 'l', windup: true }, { hand: 'r', rot: 35 }]), roundFrames(40, [{ hand: 'l' }, { hand: 'r', rot: 35 }]));
+      const r = runRound(SB, frames, { analyzer: an, coach: coach, serieSec: 20, comboSec: 4 });
+      assert.equal(r.cues[0], 'windup', 'primero corrige el golpe cargado: ' + r.cues.join(','));
+      assert.ok(r.cues.indexOf('fixed_windup') !== -1, 'después felicita la corrección: ' + r.cues.join(','));
+      assert.ok(r.cues.length <= 3, 'un comentario por serie como mucho: ' + r.cues.join(','));
+      // Ronda limpia: alguna felicitación y nunca más de una por serie.
+      const an2 = new SB.vision.Analyzer({ stance: 'diestro' });
+      const coach2 = new SB.vision.Coach({ analyzer: an2 });
+      const r2 = runRound(SB, roundFrames(60, [{ hand: 'l' }, { hand: 'r', rot: 35 }]), { analyzer: an2, coach: coach2, serieSec: 20, comboSec: 4 });
+      assert.ok(r2.kinds.length >= 1 && r2.kinds.every(function (k) { return k === 'good'; }), 'ronda limpia: solo felicitaciones (' + r2.cues.join(',') + ')');
+      [0, 1, 2].forEach(function (k) { assert.ok(r2.series.filter(function (s) { return s === k; }).length <= 1, 'serie ' + (k + 1) + ': una como mucho'); });
+      SBT.info('con corrección: ' + r.cues.join(' → ') + ' · limpia: ' + r2.cues.join(' → '));
     });
 
     SBT.it('temas por ronda: técnica, velocidad (sin mancuernas) y luego lo peor', function (env, assert) {
@@ -225,7 +268,18 @@
       });
     }
 
-    SBT.it('mancuernas (70 %, última sin peso), pelota en impares y papel con solo la mano adelantada', function (env, assert) {
+    /** Ronda de brazo atrasado fijo: todo variación y sin repetir combinación. */
+    function noRepeats(assert, b, tag) {
+      const sigs = [];
+      b.intervals.forEach(function (iv) {
+        assert.equal(iv.mode, 'variacion', tag + ': brazo atrasado fijo, todos los intervalos de variación');
+        iv.combos.forEach(function (c) { sigs.push(c.seq.join('>')); });
+      });
+      assert.equal(new Set(sigs).size, sigs.length, tag + ': sin repetir combinación en la ronda (' + sigs.length + ')');
+    }
+    const countOn = function (m) { return KEYS.filter(function (k) { return m[k]; }).length; };
+
+    SBT.it('un elemento por ronda: pelota y papel una vez, mancuernas en el resto (sin la última) y papel con la mano adelantada', function (env, assert) {
       const SB = env.fresh();
       SBT.h.settings(SB, { equipBall: true, equipPaper: true, equipDumbbells: true, dumbbellShare: 0.7 });
       SB.library.applyPreset('completo');
@@ -233,23 +287,41 @@
         const s = SB.session.generate({ durationMin: d, level: 'basico', goalId: 'completo', seed: 'mat' + d });
         const n = s.blocks.length;
         const mat = s.blocks.map(function (b) { return b.material; });
+        mat.forEach(function (m, i) { assert.ok(countOn(m) <= 1, d + ' min ronda ' + (i + 1) + ': un elemento como mucho'); });
+        assert.ok(!mat[0].ball && !mat[0].paper, d + ' min: la primera ronda, sin accesorio');
+        assert.equal(mat.filter(function (m) { return m.ball; }).length, 1, d + ' min: pelota en una ronda');
+        assert.equal(mat.filter(function (m) { return m.paper; }).length, 1, d + ' min: papel en una ronda');
         const w = mat.filter(function (m) { return m.dumbbells; }).length;
-        assert.equal(w, n >= 2 ? Math.min(n - 1, Math.round(0.7 * n)) : Math.round(0.7 * n), d + ' min: rondas con mancuernas (' + w + '/' + n + ')');
-        if (n >= 2) assert.ok(!mat[n - 1].dumbbells, d + ' min: última ronda sin peso');
-        mat.forEach(function (m, i) { assert.equal(m.ball, i % 2 === 0, d + ' min: pelota en rondas impares'); });
-        mat.forEach(function (m, i) { assert.equal(m.paper, n >= 2 && i % 3 === 1, d + ' min: papel en las rondas 2, 5, 8…'); });
+        assert.equal(w, Math.min(Math.round(0.7 * n), n - 3), d + ' min: mancuernas en las rondas libres (' + w + '/' + n + ')');
+        assert.ok(!mat[n - 1].dumbbells, d + ' min: última ronda sin peso');
         s.blocks.forEach(function (b, i) {
           if (b.material.dumbbells && b.hiit) {
             const tr = s.timeline[s.timeline.indexOf(b.hiit) - 1];
             assert.ok(tr.dropDumbbells, d + ' min: avisa de dejar las mancuernas antes del HIIT');
           }
-          if (b.material.paper) leadOnly(SB, assert, b, d + ' min ronda ' + (i + 1));
+          if (b.material.paper) { leadOnly(SB, assert, b, d + ' min ronda ' + (i + 1)); noRepeats(assert, b, d + ' min ronda ' + (i + 1)); }
         });
-        assert.ok(mat.some(function (m) { return m.paper; }) || n < 2, d + ' min: hay rondas con papel');
       });
     });
 
-    SBT.it('todo el material: una ronda especial como mucho, cuerda con esquivas, pelota colgada sin peso y avisos', function (env, assert) {
+    SBT.it('papel y toalla: una sola ronda por sesión y se alternan entre sesiones', function (env, assert) {
+      const SB = env.fresh();
+      SBT.h.settings(SB, { equipPaper: true, equipElbow: true });
+      SB.library.applyPreset('completo');
+      const seen = [];
+      for (let k = 0; k < 4; k++) {
+        const s = SB.session.generate({ durationMin: 30, level: 'basico', goalId: 'completo', seed: 'lock' + k });
+        const mat = s.blocks.map(function (b) { return b.material; });
+        const paper = mat.filter(function (m) { return m.paper; }).length, elbow = mat.filter(function (m) { return m.elbow; }).length;
+        assert.equal(paper + elbow, 1, 'sesión ' + (k + 1) + ': una sola ronda de brazo atrasado fijo');
+        seen.push(paper ? 'papel' : 'toalla');
+        SB.history.record(SB.session.toRecord(s, { completed: true }));
+      }
+      for (let k = 1; k < seen.length; k++) assert.notEqual(seen[k], seen[k - 1], 'se alternan: ' + seen.join(' → '));
+      SBT.info('brazo atrasado fijo por sesión: ' + seen.join(' → '));
+    });
+
+    SBT.it('todo el material: un solo elemento por ronda, cada accesorio una vez, cuerda con esquivas y avisos', function (env, assert) {
       const SB = env.fresh();
       SBT.h.settings(SB, ALL_ON);
       SB.library.applyPreset('golpes_defensa');
@@ -260,22 +332,33 @@
         mat.forEach(function (m, i) {
           const tag = d + ' min ronda ' + (i + 1);
           KEYS.forEach(function (k) { assert.equal(typeof m[k], 'boolean', tag + ': ' + k + ' booleano'); });
-          const specials = (m.paper || m.elbow ? 1 : 0) + (m.rope ? 1 : 0) + (m.hangball ? 1 : 0);
-          assert.ok(specials <= 1, tag + ': como mucho una ronda especial');
-          if (i === 0) assert.equal(specials, 0, tag + ': la primera ronda, sin especial');
-          assert.equal(m.paper, m.elbow, tag + ': papel y toalla van juntos');
-          if (m.hangball) assert.ok(!m.dumbbells, tag + ': pelota colgada sin mancuernas');
-          const light = (m.ball ? 1 : 0) + (m.tape ? 1 : 0) + (m.ankles ? 1 : 0);
-          assert.equal(light, 1, tag + ': un material ligero por ronda');
-          assert.ok([m.ball, m.tape, m.ankles][i % 3], tag + ': pelota, cinta y goma en ciclo');
+          assert.ok(countOn(m) <= 1, tag + ': un elemento como mucho (' + KEYS.filter(function (k) { return m[k]; }).join(', ') + ')');
         });
+        KEYS.filter(function (k) { return k !== 'dumbbells'; }).forEach(function (k) {
+          assert.ok(mat.filter(function (m) { return m[k]; }).length <= 1, d + ' min: ' + k + ' una vez como mucho');
+        });
+        assert.ok(mat.filter(function (m) { return m.paper || m.elbow; }).length <= 1, d + ' min: una ronda de papel o toalla como mucho');
         assert.ok(!mat[n - 1].dumbbells, d + ' min: última ronda sin peso');
-        if (n >= 4) {
-          ['rope', 'hangball', 'paper'].forEach(function (k) { assert.ok(mat.some(function (m) { return m[k]; }), d + ' min: hay rondas con ' + k); });
+        if (n - 1 >= 6) {
+          ['ball', 'rope', 'hangball', 'tape', 'ankles'].forEach(function (k) { assert.ok(mat.some(function (m) { return m[k]; }), d + ' min: hay ronda con ' + k); });
+          assert.ok(mat.some(function (m) { return m.paper || m.elbow; }), d + ' min: hay ronda con papel o toalla');
         }
         s.blocks.forEach(function (b, i) {
           const tag = d + ' min ronda ' + (i + 1);
-          if (b.material.paper) leadOnly(SB, assert, b, tag);
+          if (b.material.paper || b.material.elbow) {
+            leadOnly(SB, assert, b, tag);
+            noRepeats(assert, b, tag);
+            // Foco de defensa si cabe (no siempre: dos rondas seguidas no repiten foco) y, en todo
+            // caso, la mayoría de las combinaciones con una defensa o un paso entre los golpes.
+            let all = 0, mixed = 0;
+            b.intervals.forEach(function (iv) {
+              iv.combos.forEach(function (c) {
+                all++;
+                if (c.seq.some(function (id) { const m = SB.library.get(id); return m && m.category !== 'golpe'; })) mixed++;
+              });
+            });
+            assert.ok(mixed >= 0.6 * all, tag + ': con defensas o pasos (' + mixed + '/' + all + ', foco ' + b.focusId + ')');
+          }
           if (b.material.rope) {
             assert.ok(['defensa', 'contra'].indexOf(b.focusId) !== -1, tag + ': ronda con cuerda con foco de defensa (' + b.focusId + ')');
             b.intervals.forEach(function (iv) {
@@ -389,6 +472,62 @@
       assert.ok(/pies/.test(P.framingText(noFeet)), 'sin pies: aléjate');
       const noTrunk = lm.map(function (p, i) { return i === 23 ? { x: 0.5, y: 0.5, visibility: 0.1 } : p; });
       assert.ok(/tronco/.test(P.framingText(noTrunk)), 'sin cadera: no se ve el tronco');
+    });
+  });
+
+  SBT.describe('Voz, clips de los fallos y vídeos del informe', function () {
+    SBT.it('voz: masculina de España si la hay, la elegida en Ajustes si sigue instalada', function (env, assert) {
+      const SB = env.SB;
+      if (!SB.voice || !SB.voice._choose) { SBT.info('js/audio/voice.js no cargado'); return; }
+      const V = function (name, lang) { return { name: name, lang: lang }; };
+      const win = [V('Microsoft Helena - Spanish (Spain)', 'es-ES'), V('Microsoft Laura - Spanish (Spain)', 'es-ES'), V('Microsoft Pablo - Spanish (Spain)', 'es-ES'), V('Microsoft Sabina - Spanish (Mexico)', 'es-MX')];
+      assert.equal(SB.voice._choose(win, '').name, 'Microsoft Pablo - Spanish (Spain)', 'Windows: Pablo');
+      assert.equal(SB.voice._choose(win, 'Microsoft Laura - Spanish (Spain)').name, 'Microsoft Laura - Spanish (Spain)', 'respeta la elegida');
+      assert.equal(SB.voice._choose(win, 'No existe').name, 'Microsoft Pablo - Spanish (Spain)', 'si la elegida ya no está, automática');
+      assert.equal(SB.voice._choose([V('Mónica', 'es-ES'), V('Jorge', 'es-ES')], '').name, 'Jorge', 'Apple: Jorge');
+      assert.equal(SB.voice._choose([V('Paulina', 'es-MX'), V('Juan', 'es-MX')], '').name, 'Juan', 'masculina aunque no sea de España');
+      assert.equal(SB.voice._choose([V('Helena', 'es-ES'), V('Sabina', 'es-MX')], '').name, 'Helena', 'sin masculina: la de España');
+      assert.ok(!SB.voice._isMale(V('Microsoft Zira female', 'es-ES')), '«female» no cuenta como masculina');
+      assert.equal(SB.voice._choose([], ''), null, 'sin voces: ninguna');
+    });
+
+    SBT.it('clips: frase de cada momento del fallo', function (env, assert) {
+      const SB = env.SB;
+      if (!SB.vision.clips) { SBT.info('js/vision/clips.js no cargado'); return; }
+      const C = SB.vision.clips;
+      const w = { t0: 9.2, t1: 10.9, at: 10, peak: 10.15, end: 10.4, side: 'l' };
+      assert.ok(/cargas/i.test(C.labelAt({ id: 'windup', info: w }, 9.8)), 'antes de salir: «aquí cargas»');
+      assert.ok(/sale el golpe/i.test(C.labelAt({ id: 'windup', info: w }, 10.1)), 'después: el golpe');
+      assert.equal(C.labelAt({ id: 'windup', info: w }, 9.3), '', 'fuera de los tramos, sin frase');
+      assert.ok(/abajo/.test(C.labelAt({ id: 'low_return', info: w }, 10.3)), 'vuelta por abajo');
+      assert.ok(/barbilla/i.test(C.labelAt({ id: 'chin_up', info: { t0: 0, t1: 2 } }, 1)), 'error de postura: una frase para todo el clip');
+      const rec = new C.Recorder();
+      assert.ok(!rec.mark('no_existe', w), 'solo errores conocidos');
+      assert.ok(rec.mark('windup', w) && !rec.mark('windup', w), 'un clip por error');
+      rec.dispose();
+      assert.equal(rec.ids().length, 0, 'dispose lo borra todo');
+    });
+
+    SBT.it('informe: cada punto a mejorar con su clip y un vídeo de YouTube que existe en la lista', function (env, assert) {
+      const SB = env.SB;
+      const videos = SB.data && SB.data.videos;
+      assert.ok(videos, 'lista de vídeos cargada');
+      const m = { frames: 300, punches: 20, rearPunches: 10, guard: 0.4, guardThirds: [0.5, 0.4, 0.3], otherLow: 0.5, chinUp: 0.6, chinFloor: 0.4,
+        windup: 0.5, slowReturn: 0.5, lowReturn: 0.5, shortStraight: 0.6, leanPunch: 0.6, armOnly: 0.7, flare: 0.6, knees: 0.7, squared: 0.7,
+        narrow: 0.7, wide: null, typeOk: 0.4, handOrder: 0.9, byType: {} };
+      const fb = SB.vision.coachUtil.feedbackOf([m]);
+      assert.ok(fb.improve.length >= 10, 'muchos puntos a mejorar: ' + fb.improve.length);
+      fb.improve.forEach(function (x) {
+        assert.ok(Array.isArray(x.clips), x.title + ': lista de clips');
+        x.clips.forEach(function (id) { assert.ok(SB.vision.clips.INFO[id], x.title + ': el clip ' + id + ' se sabe dibujar'); });
+        assert.ok(x.video && videos[x.video], x.title + ': vídeo recomendado (' + x.video + ')');
+      });
+      Object.keys(videos).forEach(function (k) {
+        const v = videos[k];
+        [v].concat(v.alt ? [v.alt] : []).forEach(function (x) {
+          assert.ok(/^[\w-]{11}$/.test(x.id) && x.title && x.channel && x.lang, k + ': id, título, canal e idioma');
+        });
+      });
     });
   });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -15,12 +15,12 @@
  *    contraria a la que abrió la sesión anterior (SB.hiit.plan). Sin abdomen entre rondas.
  *  - Bloque final de abdomen: tras el último HIIT, descanso → [transición 5 s → ejercicio
  *    de abdomen] × k (k = 1-4 según la duración; SB.hiit.planCore). Cuenta en el tiempo pedido.
- *  - Material (ajustes; ver materialPlan): mancuernas en una parte de las rondas (nunca la última
- *    si hay ≥ 2 ni con la pelota colgada); una ronda especial por ronda a partir de la 2.ª
- *    (brazo atrasado fijo con papel y/o toalla: solo golpes de la mano adelantada; cuerda de
- *    esquivas: todas las combinaciones con media cintura, cintura completa o sentadilla y foco de
- *    defensa; pelota de tenis colgada) y material ligero en ciclo (pelota bajo la barbilla, cinta
- *    en el suelo, goma en los tobillos).
+ *  - Material (ajustes; ver materialPlan): UN elemento por ronda como mucho (20-nov-2026).
+ *    Cada accesorio una vez por sesión desde la 2.ª ronda: pelota bajo la barbilla, brazo
+ *    atrasado fijo (papel O toalla, alternando entre sesiones; solo golpes de la mano
+ *    adelantada, todo variación, sin repetir combinación y con foco de defensa), cuerda de
+ *    esquivas (todas las combinaciones con media cintura, cintura completa o sentadilla y foco
+ *    de defensa), pelota colgada, cinta y goma. Mancuernas en las rondas libres (nunca la última).
  *  - HIIT: al menos un ejercicio de defensa por sesión (media cintura, cintura completa,
  *    sentadilla o goma continuas); con la cuerda puesta, los tres primeros se hacen con ella.
  *  - Cada ronda tiene un foco (goal.focusWeights, solo focos disponibles, sin repetir en
@@ -309,7 +309,12 @@
         e = transfers[ti];
       } else {
         const excl = new Set(inInterval);
-        e = SB.selector.pick(ctx, { mode: 'variacion', focus: opt.focus, target: opt.target, exclude: excl, allow: opt.allow || null });
+        const ld = opt.lead;
+        if (ld) ld.roundUsed.forEach(function (s) { excl.add(s); });
+        e = SB.selector.pick(ctx, {
+          mode: 'variacion', focus: opt.focus, target: opt.target, exclude: excl, allow: opt.allow || null,
+          allowMove: ld ? ld.allowMove : null, boost: ld ? ld.boost : null, boostMax: ld ? ld.boostMax : null, genProb: ld ? ld.genProb : null
+        });
       }
       if (!e) break;
       let d = opt.comboTime(e.seq.length);
@@ -319,6 +324,7 @@
       list.push({ e: e, start: t, duration: d, transfer: injecting });
       SB.selector.commit(ctx, e, 'variacion');
       inInterval.add(e.signature);
+      if (opt.lead) opt.lead.roundUsed.add(e.signature);
       if (injecting) ti++;
       t += d;
       const left = opt.dur - t;
@@ -375,67 +381,81 @@
   }
 
   /**
-   * Material de cada ronda según los ajustes.
-   *  - Ronda especial (como mucho una por ronda, desde la 2.ª): «brazo atrasado fijo» (papel en la
-   *    mejilla y/o toalla bajo el codo), «cuerda de esquivas» o «pelota colgada». Ciclo
-   *    [especiales…, libre] de al menos 3 rondas: con un solo tipo, rondas 2, 5, 8…; con dos,
-   *    cada uno 1 de cada 3; con tres, cada uno 1 de cada 4. `rot` rota el orden de los tipos.
-   *  - Mancuernas: round(share·n) rondas; sin peso la última (con ≥ 2 rondas) y las de pelota
-   *    colgada; las demás rondas sin peso, a intervalos regulares.
-   *  - Material ligero (uno por ronda, en ciclo): pelota bajo la barbilla, cinta en el suelo y
-   *    goma en los tobillos. Si solo hay uno, en rondas alternas (1, 3, 5…).
+   * Material de cada ronda según los ajustes (20-nov-2026, a petición del usuario: «una vez la
+   * pelota, una vez la toalla… pero todo por separado»). Cada ronda lleva UN elemento como mucho:
+   *  - Accesorios: pelota bajo la barbilla, brazo atrasado fijo (papel en la mejilla O toalla bajo
+   *    el codo), cuerda de esquivas, pelota colgada, cinta en el suelo y goma en los tobillos. Cada
+   *    uno sale una vez por sesión, desde la 2.ª ronda y repartidos. Si hay más accesorios que
+   *    rondas, `rot` rota el orden para que los que no caben salgan en otras sesiones.
+   *  - Papel y toalla solo admiten golpes de la mano adelantada: una sola ronda así por sesión,
+   *    con el papel en una sesión y la toalla en la siguiente (`lastLock`: el de la última sesión).
+   *  - Mancuernas: también solas. Van en las rondas sin accesorio, hasta round(share·n), nunca en
+   *    la última (con ≥ 2 rondas).
    * @param {number} n
    * @param {object} settings
    * @param {number} [rot]
+   * @param {'paper'|'elbow'|null} [lastLock]
    * @returns {{dumbbells, ball, paper, elbow, rope, hangball, tape, ankles}[]} booleanos por ronda
    */
-  function materialPlan(n, settings, rot) {
+  function materialPlan(n, settings, rot, lastLock) {
     const st = settings || {};
+    const R = Math.abs(Math.round(Number(rot) || 0));
     const out = [];
     for (let r = 0; r < n; r++) out.push(emptyMaterial());
 
-    // Rondas especiales
-    const specials = [];
-    if (st.equipPaper || st.equipElbow) specials.push('lock');
-    if (st.equipRope) specials.push('rope');
-    if (st.equipHangBall) specials.push('hangball');
-    if (specials.length && n >= 2) {
-      const sh = (((rot || 0) % specials.length) + specials.length) % specials.length;
-      const cycle = specials.slice(sh).concat(specials.slice(0, sh));
-      if (cycle.length >= 3) cycle.push(null);
-      while (cycle.length < 3) cycle.push(null);
-      for (let r = 1; r < n; r++) {
-        const sp = cycle[(r - 1) % cycle.length];
-        if (sp === 'lock') { out[r].paper = !!st.equipPaper; out[r].elbow = !!st.equipElbow; }
-        else if (sp) out[r][sp] = true;
+    // Brazo atrasado fijo: papel o toalla, nunca los dos; si están los dos, se alternan.
+    let lock = null;
+    if (st.equipPaper && st.equipElbow) lock = lastLock === 'paper' ? 'elbow' : (lastLock === 'elbow' ? 'paper' : (R % 2 ? 'elbow' : 'paper'));
+    else if (st.equipPaper) lock = 'paper';
+    else if (st.equipElbow) lock = 'elbow';
+
+    const acc = [];
+    if (st.equipBall) acc.push('ball');
+    if (lock) acc.push(lock);
+    if (st.equipRope) acc.push('rope');
+    if (st.equipHangBall) acc.push('hangball');
+    if (st.equipTape) acc.push('tape');
+    if (st.equipAnkles) acc.push('ankles');
+    if (acc.length && n >= 1) {
+      const sh = R % acc.length;
+      const order = acc.slice(sh).concat(acc.slice(0, sh));
+      const first = n >= 2 ? 1 : 0;
+      const slots = n - first;
+      const k = Math.min(order.length, slots);
+      const at = [];
+      for (let j = 0; j < k; j++) at.push({ r: first + Math.floor(j * slots / k), key: order[j] });
+      // Papel/toalla y cuerda piden foco de defensa: que no vayan en rondas seguidas.
+      const L = at.find(function (x) { return x.key === lock; }), C = at.find(function (x) { return x.key === 'rope'; });
+      if (L && C && Math.abs(L.r - C.r) === 1) {
+        const other = at.find(function (x) { return x !== L && x !== C && Math.abs(x.r - C.r) > 1; });
+        if (other) { const t = other.key; other.key = L.key; L.key = t; }
       }
+      at.forEach(function (x) { out[x.r][x.key] = true; });
     }
 
-    // Mancuernas
+    // Mancuernas: solo en rondas sin accesorio y nunca en la última.
     if (st.equipDumbbells) {
       const share = DUMBBELL_SHARES.indexOf(Number(st.dumbbellShare)) !== -1 ? Number(st.dumbbellShare) : 0.7;
-      const forced = new Set();
-      if (n >= 2) forced.add(n - 1);
-      out.forEach(function (m, r) { if (m.hangball) forced.add(r); });
-      const w = Math.max(0, Math.min(Math.round(share * n), n - forced.size));
-      const u = n - w;
-      const light = new Set(forced);
-      for (let j = 0; j < u && light.size < u; j++) light.add(Math.round((j + 1) * n / u) - 1);
-      for (let r = n - 2; r >= 0 && light.size < u; r--) light.add(r);
-      for (let r = 0; r < n; r++) out[r].dumbbells = w > 0 && !light.has(r);
-    }
-
-    // Material ligero
-    const lightItems = [];
-    if (st.equipBall) lightItems.push('ball');
-    if (st.equipTape) lightItems.push('tape');
-    if (st.equipAnkles) lightItems.push('ankles');
-    if (lightItems.length === 1) lightItems.push(null);
-    for (let r = 0; r < n && lightItems.length; r++) {
-      const k = lightItems[r % lightItems.length];
-      if (k) out[r][k] = true;
+      const free = [];
+      for (let r = 0; r < n; r++) {
+        if (n >= 2 && r === n - 1) continue;
+        if (MATERIAL_KEYS.some(function (k) { return out[r][k]; })) continue;
+        free.push(r);
+      }
+      const w = Math.min(Math.round(share * n), free.length);
+      for (let j = 0; j < w; j++) out[free[Math.floor(j * free.length / w)]].dumbbells = true;
     }
     return out;
+  }
+
+  /** Brazo atrasado fijo de la sesión ('paper', 'elbow' o null). */
+  function lockOf(material) {
+    for (let r = 0; r < (material || []).length; r++) {
+      const m = material[r] || {};
+      if (m.paper) return 'paper';
+      if (m.elbow) return 'elbow';
+    }
+    return null;
   }
 
   /** Filtro de las rondas con la cuerda de esquivas: cada combinación lleva al menos una esquiva. */
@@ -452,22 +472,41 @@
    * desplazamientos (sin cambios de guardia).
    */
   function paperAllow() {
-    const ok = new Map();
-    return function (seq) {
-      for (let i = 0; i < seq.length; i++) {
-        const id = seq[i];
-        if (!ok.has(id)) {
-          const m = SB.library.get(id);
-          let v = !!m;
-          if (m && m.category === 'golpe') v = m.side === 'lead';
-          else if (m && m.subcategory === 'parada') v = m.side !== 'rear';
-          else if (m && m.subcategory === 'cambio de guardia') v = false;
-          ok.set(id, v);
-        }
-        if (!ok.get(id)) return false;
-      }
+    const move = leadOnlyMove();
+    const allow = function (seq) {
+      for (let i = 0; i < seq.length; i++) if (!move(seq[i])) return false;
       return seq.length > 0;
     };
+    allow.move = move;
+    return allow;
+  }
+
+  /** ¿Vale la técnica con el brazo atrasado fijo? (con caché) */
+  function leadOnlyMove() {
+    const ok = new Map();
+    return function (id) {
+      if (!ok.has(id)) {
+        const m = SB.library.get(id);
+        let v = !!m;
+        if (m && m.category === 'golpe') v = m.side === 'lead';
+        else if (m && m.subcategory === 'parada') v = m.side !== 'rear';
+        else if (m && m.subcategory === 'cambio de guardia') v = false;
+        ok.set(id, v);
+      }
+      return ok.get(id);
+    };
+  }
+
+  /**
+   * Ronda con el brazo atrasado fijo: como todos los golpes son de la mano adelantada, se da
+   * prioridad a las combinaciones con defensas o desplazamientos para que no sea solo jab.
+   */
+  function leadRoundBoost(seq) {
+    for (let i = 0; i < seq.length; i++) {
+      const m = SB.library.get(seq[i]);
+      if (m && m.category !== 'golpe') return 3;
+    }
+    return 1;
   }
 
   // ---------------------------------------------------------------------------
@@ -537,7 +576,7 @@
     const comboTime = comboTimeFn(level, P);
 
     // Material por ronda
-    const material = materialPlan(n, settings, SB.util.hashString(seed + ':mat'));
+    const material = materialPlan(n, settings, SB.util.hashString(seed + ':mat'), snap.lastLock || null);
     const allowPaper = paperAllow();
     const allowRope = ropeAllow();
     if (material.some(function (m) { return m.paper || m.elbow; }) && !ctx.pool.some(function (e) { return allowPaper(e.seq); })) {
@@ -555,14 +594,40 @@
       return (f.id === 'defensa' || f.id === 'contra') && (!limitFocus || limitFocus.indexOf(f.id) !== -1) && focusAvailable(f, cats, level);
     });
     let defTurn = 0;
-    material.forEach(function (m, r) {
-      if (!m.rope || !defFocus.length) return;
-      if (defFocus.some(function (f) { return roundFocus[r] && f.id === roundFocus[r].id; })) return;
-      const prev = roundFocus[r - 1], next = roundFocus[r + 1];
-      const opts = defFocus.filter(function (f) { return (!prev || prev.id !== f.id) && (!next || next.id !== f.id); });
-      if (!opts.length) return;
-      roundFocus[r] = opts[defTurn % opts.length];
-      defTurn++;
+    // También la ronda de brazo atrasado fijo (papel o toalla): con foco de defensa o contraataque
+    // lleva esquivas y pasos entre los golpes de la mano adelantada, no solo jab. La cuerda va
+    // primero: si las dos rondas quedan juntas y no hay foco para ambas, se queda la cuerda.
+    [function (m) { return m.rope; }, function (m) { return m.paper || m.elbow; }].forEach(function (want) {
+      material.forEach(function (m, r) {
+        if (!want(m) || !defFocus.length) return;
+        if (defFocus.some(function (f) { return roundFocus[r] && f.id === roundFocus[r].id; })) return;
+        const prev = roundFocus[r - 1], next = roundFocus[r + 1];
+        const opts = defFocus.filter(function (f) { return (!prev || prev.id !== f.id) && (!next || next.id !== f.id); });
+        if (opts.length) {
+          roundFocus[r] = opts[defTurn % opts.length];
+          defTurn++;
+          return;
+        }
+        // Sin hueco: se intercambia el foco con otra ronda que ya tenga uno de defensa (que no sea
+        // de cuerda), si el cambio no deja dos rondas seguidas con el mismo foco.
+        const fits = function (pos, f) {
+          return (!roundFocus[pos - 1] || pos - 1 === r || roundFocus[pos - 1].id !== f.id) &&
+            (!roundFocus[pos + 1] || pos + 1 === r || roundFocus[pos + 1].id !== f.id);
+        };
+        for (let q = 0; q < n; q++) {
+          if (q === r || Math.abs(q - r) === 1 || material[q].rope || !roundFocus[q]) continue;
+          if (!defFocus.some(function (f) { return f.id === roundFocus[q].id; })) continue;
+          if (!fits(r, roundFocus[q]) || !fits(q, roundFocus[r])) continue;
+          const t = roundFocus[q]; roundFocus[q] = roundFocus[r]; roundFocus[r] = t;
+          return;
+        }
+        // Papel o toalla: la petición del usuario (defensas y pasos, no solo jab) pesa más que no
+        // repetir el foco de la ronda de al lado.
+        if (m.paper || m.elbow) {
+          const half = defFocus.filter(function (f) { return (!prev || prev.id !== f.id) || (!next || next.id !== f.id); });
+          roundFocus[r] = (half.length ? half : defFocus)[0];
+        }
+      });
     });
 
     // Rondas
@@ -571,8 +636,12 @@
     let gi = 0;
     for (let r = 0; r < n; r++) {
       const focus = roundFocus[r];
-      const allow = (material[r].paper || material[r].elbow) ? allowPaper : (material[r].rope ? allowRope : null);
-      const nRep = reps[r];
+      const lockRound = !!(material[r].paper || material[r].elbow);
+      const allow = lockRound ? allowPaper : (material[r].rope ? allowRope : null);
+      // Brazo atrasado fijo: todo variación y sin repetir combinación en la ronda; las generadas
+      // solo con técnicas válidas y con prioridad para las que llevan defensa o desplazamiento.
+      const lead = lockRound ? { roundUsed: new Set(), allowMove: allowPaper.move, boost: leadRoundBoost, boostMax: 3, genProb: 0.6 } : null;
+      const nRep = lockRound ? 0 : reps[r];
       const nVar = ipr - nRep;
       const repEntries = [];
       const ivs = [];
@@ -594,7 +663,7 @@
           }
         } else {
           const transfers = repEntries.filter(function (_, k) { return nVar > 0 && k % nVar === vi; });
-          combos = fillVariation(ctx, { focus: focus, target: target, dur: dur, transfers: transfers, comboTime: comboTime, allow: allow });
+          combos = fillVariation(ctx, { focus: focus, target: target, dur: dur, transfers: transfers, comboTime: comboTime, allow: allow, lead: lead });
           vi++;
         }
         ivs.push({ interval: i + 1, mode: mode, focus: focus, tempo: tempoFor(goal, focus, mode, progress), duration: dur, combos: combos });
@@ -838,6 +907,8 @@
       hiit: hiit,
       hiitStart: hiitStart,
       focuses: focusesDone,
+      // Brazo atrasado fijo de la sesión ('paper' | 'elbow' | null): la siguiente usa el otro.
+      lock: lockOf(session.material),
       fingerprint: fingerprintOf(session.timeline || [], completed ? null : completedSec)
     };
   }

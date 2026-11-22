@@ -118,6 +118,11 @@
        *  Solo se evalúa con ≥5 sesiones registradas: sin historial todo parecería raro. */
       isRare: function (id) { return records.length >= 5 && !inLastRare.has(id) && (uses[id] || 0) < 3; },
       lastHiitStart: records.length ? (records[0].hiitStart || null) : null,
+      /** Papel o toalla de la última sesión que llevó uno de los dos (se alternan). */
+      lastLock: (function () {
+        for (let k = 0; k < records.length; k++) if (records[k].lock === 'paper' || records[k].lock === 'elbow') return records[k].lock;
+        return null;
+      })(),
       lastGoalDate: function (goalId) { return lastGoal[goalId] || null; },
       similarity: function (fp) {
         const A = new Set(fp || []);

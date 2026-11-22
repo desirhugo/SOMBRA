@@ -92,7 +92,7 @@
     if (tester && onDispose) onDispose(tester.dispose);
     function paint(on) {
       hint.textContent = on
-        ? 'Coloca el dispositivo delante de ti, a unos 2-3 m y a la altura del pecho, que se te vea de la cabeza a los pies. El navegador te pedirá permiso para usar la cámara. Solo se analizan las rondas de boxeo; no se graba ni se guarda ningún vídeo.'
+        ? 'Coloca el dispositivo delante de ti, a unos 2-3 m y a la altura del pecho, que se te vea de la cabeza a los pies. El navegador te pedirá permiso para usar la cámara. Solo se analizan las rondas de boxeo. Si tienes activados los clips de los fallos, se guardan unos segundos de cada uno para verlos al final a cámara lenta; se borran al salir del resumen y nunca salen de tu dispositivo.'
         : 'Apagado. Actívalo para que la app revise tu guardia, tu barbilla, tus golpes y tu cadera, y te corrija en directo.';
       if (tester) { tester.hidden = !on; if (!on) tester.dispose(); }
     }

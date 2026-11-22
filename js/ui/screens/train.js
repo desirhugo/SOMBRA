@@ -134,7 +134,7 @@
         el.camVideo.muted = true; el.camVideo.playsInline = true; el.camVideo.setAttribute('playsinline', '');
         el.camCanvas = h('canvas', { class: 'tr-cam-canvas', 'aria-hidden': 'true' });
         el.camStatus = h('div', { class: 'tr-cam-status' }, 'Cámara…');
-        el.cam = h('div', { class: 'tr-cam' + (settings.cameraPreview === false ? ' is-mini' : ''), role: 'img', 'aria-label': 'Tu imagen en la cámara (no se graba)' },
+        el.cam = h('div', { class: 'tr-cam' + (settings.cameraPreview === false ? ' is-mini' : ''), role: 'img', 'aria-label': 'Tu imagen en la cámara' },
           el.camVideo, el.camCanvas, el.camStatus);
         el.cue = h('div', { class: 'tr-cue', hidden: true, 'aria-live': 'polite' });
       }
@@ -330,7 +330,7 @@
           }
         }
         el.sr.textContent = ui.comboText(c.seq, stance);
-        if (cam && cam.round != null) ui.safe(function () { cam.analyzer.setCombo(c.seq); });
+        if (cam && cam.round != null) ui.safe(function () { cam.analyzer.setCombo(c.seq); cam.coach.onCombo(); });
         maybeAutoDemo(c);
         if (demoOpen && !demoAuto) showDemoFor(st);
       }
@@ -475,8 +475,10 @@
       }
 
       // ------------------------------------------------- análisis por cámara
-      // Solo se analizan las rondas de boxeo. No se graba nada: cada fotograma se procesa y se
-      // descarta; al terminar o salir se apaga la cámara y el informe desaparece con la pantalla.
+      // Solo se analizan las rondas de boxeo. Cada fotograma se procesa y se descarta, salvo los
+      // pocos segundos de cada fallo que guarda SB.vision.clips (si cameraClips) para verlos a
+      // cámara lenta en el resumen: solo en memoria, se borran al salir de la pantalla. Al terminar
+      // o salir se apaga la cámara.
       var cueTimer = 0;
       function setCamStatus(msg) { if (el.camStatus) { el.camStatus.textContent = msg || ''; el.camStatus.hidden = !msg; } }
       function showCue(text, kind) {
@@ -503,14 +505,16 @@
       function startCamera() {
         if (!camWanted) return;
         if (cam && cam.stream) return;
-        cam = { analyzer: new SB.vision.Analyzer({ stance: stance }), round: null, summaries: [], lastSummary: null, stream: null, tracker: null, failed: false };
+        cam = { analyzer: new SB.vision.Analyzer({ stance: stance }), round: null, summaries: [], lastSummary: null, stream: null, tracker: null, failed: false, serieSeg: -1,
+          clips: settings.cameraClips !== false && ui.has('vision.clips.Recorder') && SB.vision.clips.supported() ? new SB.vision.clips.Recorder() : null };
         if (!SB.vision.pose.supported()) { cam.failed = true; showCamError({ name: 'UnsupportedError' }); return; }
         cam.coach = new SB.vision.Coach({
           analyzer: cam.analyzer,
           say: function (t) { if (settings.voiceCues !== false && SB.voice) SB.voice.say(t); },
-          show: showCue
+          show: showCue,
+          onFault: function (id, w) { if (cam && cam.clips) ui.safe(function () { cam.clips.mark(id, w); }); }
         });
-        if (SB.voice) SB.voice.setVolume(settings.sound === false ? 0 : (Number(settings.volume) || 0.7));
+        if (SB.voice) { SB.voice.setVoice(settings.voiceName || ''); SB.voice.setVolume(settings.sound === false ? 0 : (Number(settings.volume) || 0.7)); }
         setCamStatus('Abriendo la cámara…');
         var mine = cam;
         SB.vision.pose.openCamera(el.camVideo, { deviceId: settings.cameraId || '', lastId: settings.cameraLastId || '' }).then(function (r) {
@@ -553,6 +557,7 @@
         var st = camState, seg = st && st.segment;
         if (seg && seg.type === 'boxing' && !st.paused && cam.round != null) {
           cam.analyzer.push(f);
+          if (cam.clips) cam.clips.capture(el.camVideo, f);
           cam.coach.update(f.t);
         } else if (seg && (seg.type === 'prepare' || seg.type === 'rest')) {
           setCamStatus(SB.vision.pose.framingText(f.lm));
@@ -580,6 +585,11 @@
         var seg = st && st.segment;
         if (cam.round != null && (!seg || seg.type !== 'boxing' || seg.round !== cam.round)) endCamRound();
         if (seg && seg.type === 'boxing' && cam.round == null) startCamRound(seg);
+        // Cada intervalo de boxeo es una serie: cupo de un comentario por serie.
+        if (seg && seg.type === 'boxing' && cam.round != null && st.segIndex !== cam.serieSeg) {
+          cam.serieSeg = st.segIndex;
+          cam.coach.startSerie(performance.now() / 1000);
+        }
         if (cam.tracker) cam.tracker.active = !!seg && !st.paused && (seg.type === 'boxing' || seg.type === 'prepare' || seg.type === 'rest');
         if (seg && seg.type !== 'prepare' && seg.type !== 'rest') setCamStatus('');
       }
@@ -592,16 +602,37 @@
           sum.good ? h('p', { class: 'tr-rsum-line rsum-good' }, ui.icon('check'), ' ', sum.good) : null,
           sum.fix ? h('p', { class: 'tr-rsum-line rsum-fix' }, ui.icon('target'), ' ', sum.fix) : null);
       }
+      /** Enlace al vídeo de YouTube recomendado (y al de español, si lo hay). */
+      function videoLink(key) {
+        var v = key && SB.data && SB.data.videos ? SB.data.videos[key] : null;
+        if (!v) return null;
+        var a = function (x) {
+          return h('a', { href: 'https://www.youtube.com/watch?v=' + x.id, target: '_blank', rel: 'noopener noreferrer' }, x.title);
+        };
+        return h('p', { class: 'rep-video' }, ui.icon('play'), ' Mírate este vídeo: ', a(v), ' (' + v.channel + ', en ' + v.lang + ')',
+          v.alt ? h('span', { class: 'rep-video-alt' }, ' · En español: ', a(v.alt), ' (' + v.alt.channel + ')') : null);
+      }
+      /** Hueco para el clip de un punto a mejorar (se rellena cuando el clip está listo). */
+      function clipSlot(it) {
+        if (!it.clips || !it.clips.length || !cam || !cam.clips) return null;
+        var slot = h('div', { class: 'rep-clip', hidden: true });
+        slot._clipIds = it.clips;
+        return slot;
+      }
       function reportView(rep) {
         if (!rep) return null;
         var list = function (items, withTip) {
           return h('ul', { class: 'rep-list' }, items.map(function (it) {
-            return h('li', null, h('strong', null, it.title + '. '), it.text, withTip && it.tip ? h('span', { class: 'rep-tip' }, it.tip) : null);
+            return h('li', null, h('strong', null, it.title + '. '), it.text, withTip && it.tip ? h('span', { class: 'rep-tip' }, it.tip) : null,
+              withTip ? clipSlot(it) : null, withTip ? videoLink(it.video) : null);
           }));
         };
+        var withClips = !!(cam && cam.clips);
         return h('section', { class: 'tr-report', 'aria-label': 'Análisis de las rondas de boxeo' },
           h('h2', { class: 'h3' }, 'Análisis de tus rondas de boxeo'),
-          h('p', { class: 'muted small' }, 'No se ha grabado ni guardado nada: este informe desaparece al salir de esta pantalla.'),
+          h('p', { class: 'muted small' }, withClips
+            ? 'Los clips de tus fallos solo están en esta pantalla: no se suben a ningún sitio y se borran al salir. Los vídeos de YouTube se abren en otra pestaña.'
+            : 'No se ha grabado ni guardado nada: este informe desaparece al salir de esta pantalla.'),
           rep.good.length ? h('div', { class: 'rep-block rep-good' }, h('h3', null, 'Lo que haces bien'), list(rep.good, false)) : null,
           rep.improve.length ? h('div', { class: 'rep-block rep-bad' }, h('h3', null, 'Lo que debes mejorar'), list(rep.improve, true)) : null,
           rep.compare.length ? h('div', { class: 'rep-block' }, h('h3', null, 'Datos de la sesión'), h('ul', { class: 'rep-list' }, rep.compare.map(function (c) { return h('li', null, c); }))) : null,
@@ -643,8 +674,33 @@
           home,
           reportView(rep)));
         if (rep) el.root.classList.add('has-report');
+        if (rep && cam && cam.clips) fillClips(cam.clips);
         if (fsElement()) ui.safe(function () { (document.exitFullscreen || document.webkitExitFullscreen).call(document); });
         setTimeout(function () { home.focus(); }, 50);
+      }
+
+      /** Pone en cada punto a mejorar el clip de su fallo (el primero disponible, sin repetir). */
+      var clipPlayers = [];
+      function fillClips(rec) {
+        rec.finish().then(function () {
+          if (!alive) return;
+          var used = {};
+          Array.prototype.forEach.call(el.root.querySelectorAll('.rep-clip'), function (slot) {
+            var id = (slot._clipIds || []).find(function (k) { return !used[k] && rec.get(k); });
+            if (!id) return;
+            used[id] = true;
+            var pl = SB.vision.clips.player(rec.get(id));
+            clipPlayers.push(pl);
+            slot.appendChild(h('p', { class: 'rep-clip-title' }, 'Así lo estás haciendo (en espejo, como en la cámara):'));
+            slot.appendChild(pl.el);
+            slot.hidden = false;
+          });
+        }).catch(function (e) { console.warn('[SOMBRA] clips', e); });
+      }
+      function disposeClips() {
+        clipPlayers.forEach(function (pl) { ui.safe(pl.dispose); });
+        clipPlayers = [];
+        if (cam && cam.clips) { ui.safe(function () { cam.clips.dispose(); }); cam.clips = null; }
       }
 
       function confirmExit() {
@@ -812,6 +868,7 @@
         stopLoop();
         releaseWake();
         ui.safe(function () { stopCamera(); });
+        disposeClips();
         cam = null;
         if (ro) ro.disconnect();
         window.removeEventListener('resize', refit);

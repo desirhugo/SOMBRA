@@ -676,7 +676,7 @@
     }
 
     var box = h('div', { class: 'camtest' },
-      h('div', { class: 'camtest-row' }, btn, h('p', { class: 'muted small camtest-note' }, 'Comprueba que funciona antes de entrenar. No se graba nada.')),
+      h('div', { class: 'camtest-row' }, btn, h('p', { class: 'muted small camtest-note' }, 'Comprueba que funciona antes de entrenar. La prueba no graba nada.')),
       status, fix, view, pick);
     box.dispose = stop;
     fillPicker();
